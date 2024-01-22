@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.link-highlight {
+  text-decoration: underline;
+  color: blue; /* 更改颜色为蓝色，你可以根据需要修改颜色 */
+}
