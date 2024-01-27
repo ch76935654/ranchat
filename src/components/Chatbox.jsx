@@ -13,12 +13,20 @@ import ModalImage from "react-modal-image";
 import PropTypes from "prop-types";
 
 export default function Chatbox() {
-  const [input, setInput] = useState("");
-  const [history, setHistory] = useState([]); //历史记录
+  const [input, setInput] = useState(""); //用户输入
+  const [sliceHistory, setSliceHistory] = useState([]); //聊天框历史记录
+  const [allHistory, setAllHistory] = useState([]); //所有聊天记录
   const [isSending, setIsSending] = useState(false); //是否正在发送邮件
-  const [title, setTitle] = useState(""); //标题
+  const [firstOpen, setFirstOpen] = useState(true); //是否是第一次打开
+  const [titleAndTime, setTitleAndTime] = useState(["新对话", "新建时间", ""]); //标题和时间
+  const [isSetting, setIsSetting] = useState(false); //是否正在设置
 
-  const apiKey = "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";
+  const [apiKey, setApiKey] = useState(
+    "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",
+  ); //openai key
+  const [temperature, setTemperature] = useState(1); //发散度
+  const [length, setLength] = useState(10); //结合上下文
+
   const openai = new OpenAI({
     apiKey: apiKey,
     dangerouslyAllowBrowser: true,
@@ -34,36 +42,73 @@ export default function Chatbox() {
       chat(input);
       setInput("");
     }
-    setIsSending(false);
+  }
+
+  function handleNewConversation() {
+    setInput("");
+    setFirstOpen(true);
+    setSliceHistory([]);
+    setTitleAndTime(["新对话", "新建时间", ""]);
+  }
+
+  function handleSelectConversation(selectId) {
+    const selectConversation = allHistory.find(
+      (c) => c.conversationId === selectId,
+    );
+    setSliceHistory(selectConversation.messages);
+    setTitleAndTime([
+      selectConversation.name,
+      new Date(Number(selectId)).getFullYear() +
+        "年" +
+        (new Date(Number(selectId)).getMonth() + 1) +
+        "月" +
+        new Date(Number(selectId)).getDate() +
+        "日",
+      selectId,
+    ]);
+    setFirstOpen(false);
+  }
+
+  function handleClean() {
+    let allConversations = allHistory;
+    const selectId = titleAndTime[2];
+    allConversations = allConversations.filter(
+      (c) => c.conversationId !== selectId,
+    );
+    setAllHistory(allConversations);
+    setFirstOpen(true);
+    setSliceHistory([]);
+    setTitleAndTime(["新对话", "新建时间", ""]);
+  }
+
+  function handleIsSetting() {
+    setIsSetting((isSetting) => !isSetting);
   }
 
   async function chat(userInput) {
-    const length = history.length;
-    const createdTime = new Date().getTime().toString();
+    let createdTime = new Date().getTime().toString();
     const userMessage = {
-      id: createdTime + "user",
+      id: createdTime,
       role: "user",
       content: userInput,
     };
     const assistantMessage = {
-      id: createdTime + "assistant",
+      id: Number(createdTime) + 1,
       role: "assistant",
       content: "正在思考中...",
     };
-
-    setHistory((prevHistory) => [
-      ...prevHistory,
-      userMessage,
-      assistantMessage,
-    ]);
-
+    let finalHistory = [...sliceHistory, userMessage, assistantMessage];
+    setSliceHistory(finalHistory);
+    const startIndex = Math.max(sliceHistory.length - length, 0);
+    const lastElements = sliceHistory.slice(startIndex);
     try {
       const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
-        messages: [...history, userMessage].map((h) => ({
+        messages: [...lastElements, userMessage].map((h) => ({
           role: h.role,
           content: h.content,
         })),
+        temperature: Number(temperature ? temperature : 1),
         stream: true,
       });
 
@@ -71,35 +116,55 @@ export default function Chatbox() {
       for await (const chunk of completion) {
         const contentChunk = chunk.choices[0]?.delta?.content || "";
         allChunks += contentChunk;
-        setHistory((prevHistory) => {
+
+        setSliceHistory((prevHistory) => {
           const newHistory = [...prevHistory];
           const index = newHistory.findIndex(
             (msg) => msg.id === assistantMessage.id,
-          ); //会返回被查找元素在数组中的索引，如果没有找到则返回-1。
+          );
           if (index !== -1) {
             newHistory[index].content = allChunks;
+            finalHistory[index].content = allChunks;
           }
           return newHistory;
         });
+        //会返回被查找元素在数组中的索引，如果没有找到则返回-1。
 
         if (chunk.choices[0]?.finish_reason === "stop") {
           break;
         }
       }
-      if (length === 0) {
-        summarize();
+
+      if (firstOpen) {
+        const name = await summarize(finalHistory, createdTime);
+        setFirstOpen(false);
+        handleSaveAllHistory(createdTime, finalHistory, name);
+        return;
+      }
+      if (!firstOpen) {
+        if (finalHistory.length > 0) {
+          createdTime = finalHistory[0].id;
+          handleSaveAllHistory(createdTime, finalHistory);
+        } else {
+          console.error("finalHistory is empty");
+        }
       }
     } catch (error) {
       console.error("Error with the streaming API:", error);
     }
   }
 
-  async function summarize() {
+  async function summarize(finalHistory, createdTime) {
+    const result = finalHistory.map((h) => ({
+      role: h.role,
+      content: h.content,
+    }));
+    const date = new Date(Number(createdTime));
     try {
       const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          ...history,
+          ...result,
           {
             role: "user",
             content:
@@ -107,10 +172,44 @@ export default function Chatbox() {
           },
         ],
       });
-      setTitle(completion.choices[0]?.message.content);
+      setTitleAndTime([
+        completion.choices[0]?.message.content.replace(/"/g, ""),
+        date.getFullYear() +
+          "年" +
+          (date.getMonth() + 1) +
+          "月" +
+          date.getDate() +
+          "日",
+        createdTime,
+      ]);
+      return completion.choices[0]?.message.content.replace(/"/g, "");
     } catch (error) {
       console.error("Error with the summarize:", error);
     }
+  }
+
+  function handleSaveAllHistory(searchId, finalHistory, name = "") {
+    let allConversations = allHistory;
+    let conversationExists = false;
+
+    for (let conversation of allConversations) {
+      if (conversation.conversationId === searchId) {
+        // 如果存在，更新 messages 并标记已找到
+        conversation.messages = finalHistory;
+        conversationExists = true;
+        break;
+      }
+    }
+    // 如果不存在匹配的 conversationId，创建一个新的对话对象
+    if (!conversationExists) {
+      allConversations.unshift({
+        conversationId: searchId,
+        name: name,
+        messages: finalHistory,
+      });
+    }
+    setAllHistory(allConversations);
+    setIsSending(false);
   }
   // const sendMail = async () => {
   //   const to = "2090244567@qq.com";
@@ -210,59 +309,33 @@ export default function Chatbox() {
         <div className="w-150 mr-2 flex flex-col items-center">
           <div className="m-2 flex flex-row justify-center border-b border-blue-200 p-2 pb-4 ">
             <div className=" text-2xl font-bold">历史消息</div>
-            <button className="ml-2 text-2xl hover:rounded-lg hover:shadow-lg">
+            <button
+              className="ml-2 text-2xl hover:rounded-lg hover:shadow-lg"
+              onClick={handleNewConversation}
+              disabled={isSending}
+            >
               📝
             </button>
           </div>
           <div className="max-h-[1000px] overflow-auto">
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
+            {allHistory.map((h) => (
+              <button
+                className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 p-2 hover:shadow-lg"
+                key={"cov" + h.conversationId}
+                onClick={() =>
+                  handleSelectConversation(h.conversationId.match(/\d+/)[0])
+                }
+                disabled={isSending}
+              >
+                {h.name}
+              </button>
+            ))}
+            {/* <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 p-2 hover:shadow-lg">
               聊天1
             </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
+            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 p-2 hover:shadow-lg">
               聊天2
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天1
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天2
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天1
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天2
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天1
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天2
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天1
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天2
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天1
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天2
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天1
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天2
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天1
-            </div>
-            <div className="m-2 flex h-16 w-36 flex-row items-center justify-center rounded bg-blue-200 hover:shadow-lg">
-              聊天2
-            </div>
+            </div> */}
           </div>
         </div>
         <div className="flex max-h-[1300px] w-[900px] flex-col rounded-lg bg-purple-100 hover:shadow-lg">
@@ -270,18 +343,33 @@ export default function Chatbox() {
             <div className="container flex max-h-[65px] flex-row border-blue-200 p-4 shadow-lg ">
               <div className="mx-auto flex items-center">
                 <div className="ml-8 text-2xl font-bold ">
-                  {title ? title : "新对话"}
+                  {titleAndTime ? titleAndTime[0] : "新对话"}
                 </div>
-                <div className="ml-1 mt-2">新建时间</div>
-                <button className="text-2xl">🧹</button>
+                <div className="ml-1 mt-2">
+                  {titleAndTime ? titleAndTime[1] : "新建时间"}
+                </div>
+                <button
+                  className="text-2xl"
+                  onClick={handleClean}
+                  disabled={isSending}
+                >
+                  🧹
+                </button>
               </div>
               <div className="flex items-center">
-                <button className=" text-4xl">ℹ️</button>
+                <button
+                  className=" text-4xl"
+                  onClick={handleIsSetting}
+                  disabled={isSending}
+                >
+                  ℹ️
+                </button>
               </div>
             </div>
             <div className=" h-[905px] overflow-auto">
-              {history &&
-                history.map((item) => (
+              {!isSetting ? (
+                sliceHistory &&
+                sliceHistory.map((item) => (
                   <div
                     className={
                       "m-4 flex flex-row " +
@@ -310,7 +398,43 @@ export default function Chatbox() {
                       </ReactMarkdown>
                     </div>
                   </div>
-                ))}
+                ))
+              ) : (
+                <div className="mx-auto mt-8 flex h-[850px] w-[800px] flex-col items-center rounded-lg border-4 border-slate-300 bg-slate-100 shadow-2xl">
+                  <div className=" m-6 flex flex-row items-center">
+                    <div className="mr-6 text-2xl">OPEN_AI_KEY :</div>
+                    <input
+                      type="text"
+                      className="w-96 rounded-lg p-1 text-2xl"
+                      value={apiKey}
+                      placeholder="输入你的key"
+                      onChange={(e) => setApiKey(e.target.value)}
+                    />
+                  </div>
+                  <div className="mt-6 flex flex-row justify-center">
+                    <div className="mr-16 flex flex-col items-center">
+                      <div className="text-2xl">发散度</div>
+                      <input
+                        type="text"
+                        className="w-32 rounded-lg p-1 text-2xl"
+                        placeholder="默认为1"
+                        value={temperature}
+                        onChange={(e) => setTemperature(e.target.value)}
+                      />
+                    </div>
+                    <div className=" flex flex-col items-center">
+                      <div className="text-2xl">结合上下文</div>
+                      <input
+                        type="text"
+                        className="w-32 rounded-lg p-1 text-2xl"
+                        placeholder="默认为最大"
+                        value={length}
+                        onChange={(e) => setLength(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* <div className="m-auto flex h-[850px] w-[800px] flex-col items-center rounded-lg border-4 border-slate-300 bg-slate-100 shadow-2xl">
               <div className=" m-6 flex flex-row items-center">
                 <div className="mr-6 text-2xl">OPEN_AI_KEY :</div>
@@ -358,6 +482,7 @@ export default function Chatbox() {
               <button
                 className="mr-2 h-[50px] w-[80px] rounded-lg bg-blue-200 text-lg font-bold"
                 onClick={handleSend}
+                disabled={isSending}
               >
                 发送⏏️
               </button>

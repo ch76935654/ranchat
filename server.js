@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors"; // 引入 cors 模块
 import nodemailer from "nodemailer";
+import { Pinecone } from "@pinecone-database/pinecone";
 
 const app = express();
 const port = 3001;
@@ -10,6 +11,12 @@ const port = 3001;
 // }));
 app.use(cors());
 app.use(express.json());
+
+const config = new Pinecone({
+  apiKey: "34f2630b-2f0d-477f-a9ba-61503e5fccf0",
+});
+// 初始化Pinecone客户端
+Pinecone.initialize(config);
 
 const transporter = nodemailer.createTransport({
   service: "QQ",
@@ -39,6 +46,23 @@ app.post("/sendMail", (req, res) => {
 
     res.status(200).json({ success: "发送成功", response: info.response });
   });
+});
+
+// Pinecone查询路由
+app.post("/queryPinecone", async (req, res) => {
+  try {
+    const { vector } = req.body;
+    const index = Pinecone.index("your-index-name");
+
+    const response = await index.query({
+      vector: vector,
+      topK: 5, // 返回最相似的前5个结果
+    });
+
+    res.status(200).json(response.data.matches);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.listen(port, () => {

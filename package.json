@@ -11,6 +11,7 @@
     "serve": "node server.js"
   },
   "dependencies": {
+    "@pinecone-database/pinecone": "^2.0.1",
     "@reduxjs/toolkit": "^2.0.1",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -26,7 +27,8 @@
     "rehype-raw": "^7.0.0",
     "rehype-stringify": "^10.0.0",
     "remark-gfm": "^4.0.0",
-    "remark-mermaid-plugin": "^1.0.2"
+    "remark-mermaid-plugin": "^1.0.2",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
