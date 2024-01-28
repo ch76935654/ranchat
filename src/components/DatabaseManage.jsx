@@ -16,6 +16,8 @@ export default function DatabaseManage() {
   const pineconeIndexName = "long-term-memory";
   // 连接到Pinecone索引
   const index = pc.index(pineconeIndexName);
+  const lm = index.namespace("user_long_term_memory");
+  const im = index.namespace("user_implicit_memory");
 
   async function uploadTextVectorToPinecone(text) {
     const recordId = uuidv4();
@@ -36,7 +38,8 @@ export default function DatabaseManage() {
       },
     ];
 
-    await index.upsert(records);
+    await lm.upsert(records);
+    await im.upsert(records);
     console.log(`Vector for '${text}' uploaded successfully.`);
   }
 
@@ -87,7 +90,7 @@ export default function DatabaseManage() {
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      <button onClick={() => generateResponse(text)}>test</button>
+      <button onClick={() => uploadTextVectorToPinecone(text)}>test</button>
     </div>
   );
 }
