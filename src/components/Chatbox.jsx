@@ -1,3 +1,4 @@
+//原型
 import OpenAI from "openai";
 import { useState } from "react";
 import gptLogo from "../assets/gpt.png";

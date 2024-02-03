@@ -1,16 +1,18 @@
 import "./App.css";
-//import Chatbox from "./components/Chatbox";
-import DatabaseManage from "./components/DatabaseManage";
+import HeaderBar from "./components/HeaderBar";
+import LogPage from "./components/LogPage";
+import ChatPage from "./components/ChatPage";
 
 function App() {
   if (typeof global === "undefined") {
     window.global = window;
   }
   return (
-    <>
-      {/* <Chatbox /> */}
-      <DatabaseManage />
-    </>
+    <div className="flex flex-col ">
+      <HeaderBar />
+      <LogPage />
+      {/* <ChatPage /> */}
+    </div>
   );
 }
 
