@@ -1,78 +1,35 @@
+import { useState } from "react";
 export default function LogPage() {
   return (
-    <section className="body-font relative text-gray-600">
-      <div className="container mx-auto flex flex-wrap px-5 py-24 sm:flex-nowrap">
-        <div className="relative flex items-end justify-start overflow-hidden rounded-lg bg-gray-300 p-10 sm:mr-10 md:w-1/2 lg:w-2/3">
-          <div className="relative flex flex-wrap rounded bg-white py-6 shadow-md">
-            <div className="px-6 lg:w-1/2">
-              <h2 className="title-font text-xs font-semibold tracking-widest text-gray-900">
-                ADDRESS
-              </h2>
-              <p className="mt-1">
-                Photo booth tattooed prism, portland taiyaki hoodie neutra
-                typewriter
-              </p>
-            </div>
-            <div className="mt-4 px-6 lg:mt-0 lg:w-1/2">
-              <h2 className="title-font text-xs font-semibold tracking-widest text-gray-900">
-                邮箱
-              </h2>
-              <a className="leading-relaxed text-purple-500">
-                example@email.com
-              </a>
-              <h2 className="title-font mt-4 text-xs font-semibold tracking-widest text-gray-900">
-                PHONE
-              </h2>
-              <p className="leading-relaxed">123-456-7890</p>
-            </div>
-          </div>
-        </div>
-        <div className="mt-8 flex w-full flex-col bg-white md:ml-auto md:mt-0 md:w-1/2 md:py-8 lg:w-1/3">
-          <h2 className="title-font mb-1 text-lg font-medium text-gray-900">
-            IndivMosaic AI
-          </h2>
-          <p className="mb-5 leading-relaxed text-gray-600">
-            Post-ironic portland shabby chic echo park, banjo fashion axe
-          </p>
-          <div className="relative mb-4">
-            <label className="text-sm leading-7 text-gray-600">邮箱</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              className="w-full rounded border border-gray-300 bg-white px-3 py-1 text-base leading-8 text-gray-700 outline-none transition-colors duration-200 ease-in-out focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
-            />
-          </div>
-          <div className="relative mb-4">
-            <label className="text-sm leading-7 text-gray-600">密码</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              className="w-full rounded border border-gray-300 bg-white px-3 py-1 text-base leading-8 text-gray-700 outline-none transition-colors duration-200 ease-in-out focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
-            />
-          </div>
-          <div className="relative mb-4">
-            <label className="text-sm leading-7 text-gray-600">验证信息</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              className="w-full rounded border border-gray-300 bg-white px-3 py-1 text-base leading-8 text-gray-700 outline-none transition-colors duration-200 ease-in-out focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
-            />
-          </div>
-          <button className="rounded border-0 bg-purple-500 px-6 py-2 text-lg text-white hover:bg-purple-600 focus:outline-none">
-            发送验证码
-          </button>
-          <button className="mt-4 rounded border-0 bg-purple-500 px-6 py-2 text-lg text-white hover:bg-purple-600 focus:outline-none">
-            登录
-          </button>
-          <p className="mt-3 text-xs text-gray-500">
-            Chicharrones blog helvetica normcore iceland tousled brook viral
-            artisan.
-          </p>
+    <div className="flex flex-col ">
+      <div className="flex flex-col items-center">
+        <div className="m-2 text-2xl">IndiviMosaic AI</div>
+        <div className="m-2 w-[420px] text-xl">
+          结合了“Individual”和“Mosaic”，暗示每个人的记忆和经历都是独一无二的碎片，汇集在一起形成了一个完整的个性画像。应用程序旨在捕捉和重构每个用户的独特记忆模式的功能，正如马赛克艺术品那样，由许多不同的小块组合而成。
         </div>
       </div>
-    </section>
+      <div className="flex flex-row justify-around">
+        <div className="flex flex-col bg-purple-100">
+          <div className="m-2 text-2xl">邮箱</div>
+          <input className="m-2 rounded border-2" />
+          <div className="m-2 text-2xl">密码</div>
+          <input className="m-2 rounded border-2" />
+          <div className="m-2 text-2xl">验证码</div>
+          <input className="m-2 rounded border-2" />
+          <button className="m-2 rounded bg-slate-400 p-2 text-2xl">
+            注册
+          </button>
+        </div>
+        <div className="flex flex-col bg-blue-100">
+          <div className="m-2 text-2xl">邮箱</div>
+          <input className="m-2 rounded border-2" />
+          <div className="m-2 text-2xl">密码</div>
+          <input className="m-2 rounded border-2" />
+          <button className="m-2 rounded bg-slate-400 p-2 text-2xl">
+            登录
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

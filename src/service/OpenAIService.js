@@ -1,10 +1,11 @@
 import OpenAI from "openai";
 import dotenv from "dotenv";
-import { v4 as uuidv4 } from "uuid";
+
 dotenv.config();
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  baseURL: "http://reolran1109.top/openai/v1/",
 });
 
 async function chat(prompt) {

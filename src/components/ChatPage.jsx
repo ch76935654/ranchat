@@ -85,11 +85,6 @@ export default function Chatbox() {
     };
   }, []);
 
-  const openai = new OpenAI({
-    apiKey: apiKey,
-    dangerouslyAllowBrowser: true,
-  });
-
   function handleInputChange(e) {
     setInput(e.target.value);
   }

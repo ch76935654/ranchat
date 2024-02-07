@@ -9,39 +9,6 @@ const pineconeIndex = pc.index("long-term-memory");
 const lm = pineconeIndex.namespace("user_long_term_memory");
 const im = pineconeIndex.namespace("user_implicit_memory");
 
-async function uploadTextVectorToPinecone(uuid, text) {
-  const embeddingResponse = await openai.embeddings.create({
-    model: "text-embedding-ada-002",
-    input: text,
-    encoding_format: "float",
-  });
-
-  // 提取向量
-  const vector = embeddingResponse.data[0].embedding;
-
-  // 准备数据并上传到Pinecone
-  const records = [
-    {
-      id: uuid, // 记录的唯一ID
-      values: vector,
-    },
-  ];
-
-  await lm.upsert(records);
-
-  console.log(`Vector for '${text}' uploaded successfully.`);
-}
-
-async function getQueryVector(question) {
-  const embeddingResponse = await openai.embeddings.create({
-    model: "text-embedding-ada-002",
-    input: question,
-    encoding_format: "float",
-  });
-
-  return embeddingResponse.data[0].embedding;
-}
-
 async function queryPinecone(vector, topK) {
   try {
     const queryResponse = await im.query({
@@ -67,9 +34,4 @@ async function returnPineconeQueryResult(vector, topK) {
   }
 }
 
-export {
-  pineconeIndex,
-  queryPinecone,
-  uploadTextVectorToPinecone,
-  returnPineconeQueryResult,
-};
+export { pineconeIndex, queryPinecone, returnPineconeQueryResult };

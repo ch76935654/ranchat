@@ -1,20 +1,6 @@
-import {
-  chat,
-  chatByStream,
-  summarize,
-  embeddingChat,
-} from "./OpenAIService.js";
-import {
-  insertData,
-  getPostgreSQLDataByUUID,
-  getDataByTypeAndUserID,
-} from "./DataBase.js";
-import {
-  pineconeIndex,
-  queryPinecone,
-  uploadTextVectorToPinecone,
-  returnPineconeQueryResult,
-} from "./VectorDataBase.js";
+import { chat, chatByStream, embeddingChat } from "./OpenAIService.js";
+import { insertData, getPostgreSQLDataByUUID } from "./DataBase.js";
+import { pineconeIndex, queryPinecone } from "./VectorDataBase.js";
 import { v4 as uuidv4 } from "uuid";
 
 async function uploadToPostgreSQLAndPinecone(
