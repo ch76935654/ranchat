@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-const to = "2090244567@qq.com";
+
 //创建一个SMTP客户端配置对象
 const transporter = nodemailer.createTransport({
   // 默认支持的邮箱服务包括：”QQ”、”163”、”126”、”iCloud”、”Hotmail”、”Yahoo”等
@@ -13,26 +13,23 @@ const transporter = nodemailer.createTransport({
 });
 
 // 配置收件人信息
-const receiver = {
-  // 发件人 邮箱  '昵称<发件人邮箱>'
-  from: `"秋映染"<qiuyingran5654@qq.com>`,
-  // 主题
-  subject: "验证码",
-  // 收件人 的邮箱 可以是其他邮箱 不一定是qq邮箱
-  to: to,
-  // 可以使用html标签
-  html: `
-   <h1>你好,你的验证码：</h1>
-    <h1 style="color:red">123456</h1>
-   `,
-};
+export function sendMail(to, code) {
+  return new Promise((resolve, reject) => {
+    const receiver = {
+      from: `"秋映染"<qiuyingran5654@qq.com>`,
+      subject: "验证码",
+      to: to,
+      html: `<h1>你好,你的验证码：</h1><h1 style="color:red">${code}</h1>`,
+    };
 
-// 发送邮件
-
-transporter.sendMail(receiver, (error, info) => {
-  if (error) {
-    return console.log("发送失败:", error);
-  }
-
-  console.log("发送成功:", info.response);
-});
+    transporter.sendMail(receiver, (error, info) => {
+      if (error) {
+        console.log("发送失败:", error);
+        reject("发送失败"); // 使用 reject 来返回错误状态
+      } else {
+        console.log("发送成功:", info.response);
+        resolve("发送成功"); // 使用 resolve 来返回成功状态
+      }
+    });
+  });
+}

@@ -2,8 +2,8 @@ import "global-agent/bootstrap.js";
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import nodemailer from "nodemailer";
-import { Pinecone } from "@pinecone-database/pinecone";
+import { sendMail } from "./src/service/MailSend.js";
+import { logUser, findUserExist, insertUser } from "./src/service/DataBase.js";
 import { WebSocketServer } from "ws";
 import { chatByStream, summarize } from "./src/service/OpenAIService.js";
 import {
@@ -21,6 +21,8 @@ console.log(process.env.PGUSER);
 const express_port = 3001;
 const ws_port = 3002;
 const app = express();
+let randomCode = null; //存发出去的验证码
+
 app.use(cors());
 app.use(express.json());
 
@@ -83,6 +85,62 @@ app.post("/summarize", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
+
+app.post("/log", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    console.log(email, password);
+    const { status, isLog } = await logUser(email, password);
+    res.json({ status, isLog });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.post("/sendCode", async (req, res) => {
+  try {
+    const { email } = req.body;
+    console.log(email);
+    //判断是否存在该邮箱，若存在则返回已注册
+    const isExist = await findUserExist(email);
+    if (isExist) {
+      const status = "该邮箱已注册";
+      res.json({ status });
+    } else {
+      randomCode = Math.floor(Math.random() * 900000) + 100000;
+      const status = await sendMail(email, randomCode);
+      res.json({ status }); // 以JSON格式发送状态
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.post("/register", async (req, res) => {
+  try {
+    const { email, password, code } = req.body;
+    console.log(email, password, code);
+    if (randomCode === Number(code)) {
+      const isRegister = insertUser(email, password);
+      if (isRegister) {
+        const status = "注册成功";
+        res.json({ status });
+      } else {
+        const status = "注册失败";
+        res.json({ status });
+      }
+    } else {
+      const status = "验证码错误";
+      res.json({ status });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
 // 启动服务器
 app.listen(express_port, "0.0.0.0", () => {
   console.log(`Server is running at http://localhost:${express_port}`);

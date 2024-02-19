@@ -8,7 +8,7 @@ function App() {
     window.global = window;
   }
   return (
-    <div className="flex flex-col ">
+    <div className="flex h-screen flex-col">
       <HeaderBar />
       <LogPage />
       {/* <ChatPage /> */}

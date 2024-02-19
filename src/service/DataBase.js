@@ -12,6 +12,92 @@ const pool = new Pool({
   port: process.env.PGPORT, // 默认端口
 });
 
+async function logUser(email, password) {
+  // 1. 使用参数连接到数据库
+  const client = await pool.connect();
+
+  try {
+    // 2. 准备 SQL 语句来查询邮箱
+    const queryEmail = "SELECT * FROM public.user_data WHERE email = $1";
+
+    // 3. 执行 SQL 语句
+    const res = await client.query(queryEmail, [email]);
+
+    // 4. 检查是否找到了邮箱
+    if (res.rows.length === 0) {
+      return { status: "没有该邮箱，请注册", isLog: false };
+    } else {
+      // 5. 比对密码
+      const user = res.rows[0]; // 假设查询结果中的第一行是我们需要的用户数据
+      if (user.password === password) {
+        const updateLoginTime =
+          "UPDATE public.user_data SET last_login_time = NOW() WHERE email = $1";
+        await client.query(updateLoginTime, [email]);
+        return { status: "登录成功", isLog: true };
+      } else {
+        return { status: "密码错误", isLog: false };
+      }
+    }
+  } catch (err) {
+    console.error(err.stack);
+    return { status: "登录过程中出现错误", isLog: false };
+  } finally {
+    // 6. 关闭连接
+    client.release();
+  }
+}
+
+async function findUserExist(email) {
+  // 1. 使用参数连接到数据库
+  const client = await pool.connect();
+
+  try {
+    // 2. 准备 SQL 语句来检查邮箱是否存在
+    const queryText = "SELECT * FROM public.user_data WHERE email = $1";
+
+    // 3. 执行 SQL 语句
+    const res = await client.query(queryText, [email]);
+
+    // 根据查询结果返回布尔值
+    if (res.rows.length > 0) {
+      console.log("该邮箱已存在");
+      return true; // 存在时返回 true
+    } else {
+      console.log("该邮箱不存在");
+      return false; // 不存在时返回 false
+    }
+  } catch (err) {
+    console.error(err.stack);
+    return false; // 发生异常时，为避免误操作，可以选择返回 false
+  } finally {
+    // 4. 关闭连接
+    client.release();
+  }
+}
+
+async function insertUser(email, password) {
+  // 1. 使用参数连接到数据库
+  const client = await pool.connect();
+
+  try {
+    // 2. 准备 SQL 语句
+    const queryText =
+      "INSERT INTO public.user_data" + "(email, password) VALUES($1, $2)";
+
+    // 3. 执行 SQL 语句
+    await client.query(queryText, [email, password]);
+
+    console.log("postgreSQL上传成功");
+    return true; // 上传成功返回 true
+  } catch (err) {
+    console.error(err.stack);
+    return false; // 发生错误返回 false
+  } finally {
+    // 4. 关闭连接
+    client.release();
+  }
+}
+
 //postgreSQL插入新数据
 async function insertData(
   memorySQLSpace,
@@ -106,4 +192,11 @@ async function getDataByTypeAndUserID(type, user_id) {
   }
 }
 
-export { insertData, getPostgreSQLDataByUUID, getDataByTypeAndUserID };
+export {
+  logUser,
+  findUserExist,
+  insertUser,
+  insertData,
+  getPostgreSQLDataByUUID,
+  getDataByTypeAndUserID,
+};
