@@ -1,18 +1,84 @@
 import "./App.css";
+import { RouterProvider, createBrowserRouter, Outlet } from "react-router-dom";
 import HeaderBar from "./components/HeaderBar";
+import HomePage from "./components/HomePage";
 import LogPage from "./components/LogPage";
+import AssistantPage from "./components/AssistantPage";
 import ChatPage from "./components/ChatPage";
+import DatabaseManage from "./components/DatabaseManage";
+import SettingPage from "./components/SettingPage";
+import OtherPage from "./components/OtherPage";
+import Footer from "./components/Footer";
+import { AccountProvider } from "./context/AccountContext";
+
+const router = createBrowserRouter([
+  {
+    path: "/", //首页
+    element: (
+      <>
+        <HeaderBar />
+        <Outlet />
+        <Footer />
+      </>
+    ),
+    /*     errorElement: <Error />, */
+
+    children: [
+      {
+        path: "/",
+        element: <HomePage />,
+      },
+      {
+        path: "/log",
+        element: <LogPage />,
+        /*         action: createOrderAction, */
+      },
+      {
+        path: "/assistant",
+        element: <AssistantPage />,
+        /*         action: createOrderAction, */
+      },
+      {
+        path: "/chat",
+        element: <ChatPage />,
+        /*         action: createOrderAction, */
+      },
+      {
+        path: "/database",
+        element: <DatabaseManage />,
+      },
+      {
+        path: "/setting",
+        element: <SettingPage />,
+      },
+      {
+        path: "/other",
+        element: <OtherPage />,
+      },
+      /*       {
+        path: "/order/:orderId",
+        element: <Order />,
+        loader: orderLoader,
+        errorElement: <Error />,
+        action: updateOrderAction,
+      }, */
+    ],
+  },
+]);
 
 function App() {
   if (typeof global === "undefined") {
     window.global = window;
   }
+
   return (
-    <div className="flex h-screen flex-col">
-      <HeaderBar />
-      <LogPage />
-      {/* <ChatPage /> */}
-    </div>
+    <AccountProvider>
+      <div className="flex h-screen flex-col">
+        <RouterProvider router={router} />
+        {/* <LogPage /> */}
+        {/* <ChatPage /> */}
+      </div>
+    </AccountProvider>
   );
 }
 

@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { useAccount } from "./../context/AccountContext";
 
 export default function LogPage() {
+  const { accountEmail, setAccountEmail } = useAccount();
+
   const [logging, setLogging] = useState(true); //登录or注册
   const [email, setEmail] = useState(""); //邮箱
   const [password, setPassword] = useState(""); //密码
@@ -19,6 +22,8 @@ export default function LogPage() {
       .then((data) => {
         setStatus(data.status);
         if (data.isLog) {
+          setAccountEmail(email);
+          localStorage.setItem("token", data.token);
           //跳转到主页
         }
       })
@@ -60,10 +65,16 @@ export default function LogPage() {
         .then((response) => response.json())
         .then((data) => {
           setStatus(data.status);
+          if (data.status === "注册成功") {
+            localStorage.setItem("token", data.token);
+          }
         })
         .catch((error) => {
           console.error("Error:", error);
         });
+    } else {
+      // 提示用户输入不合法
+      setStatus("请确保输入的信息完整且密码长度不少于8位");
     }
   }
 

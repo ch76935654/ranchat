@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import { useState, useEffect, useRef } from "react";
 import gptLogo from "../assets/gpt.png";
 
@@ -20,7 +19,7 @@ export default function Chatbox() {
   const [firstOpen, setFirstOpen] = useState(true); //是否是第一次打开
   const [titleAndTime, setTitleAndTime] = useState(["新对话", "新建时间", ""]); //标题和时间
   const [isSetting, setIsSetting] = useState(false); //是否正在设置
-  const [user_id, setUser_id] = useState("reolran");
+  const [user_id, setUser_id] = useState("2090244567@qq.com");
 
   const [apiKey, setApiKey] = useState(
     "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",
@@ -282,25 +281,6 @@ export default function Chatbox() {
     setIsSending(false);
   }
 
-  // const sendMail = async () => {
-  //   const to = "2090244567@qq.com";
-
-  //   try {
-  //     const response = await fetch("http://localhost:3001/sendMail", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({ to }),
-  //     });
-
-  //     const data = await response.json();
-  //     console.log(data);
-  //   } catch (error) {
-  //     console.error("邮件发送失败:", error);
-  //   }
-  // };
-
   const CustomLink = ({ href, children }) => {
     return (
       <a
@@ -356,7 +336,7 @@ export default function Chatbox() {
   };
 
   return (
-    <div className="mt-2 flex flex-row justify-center p-2">
+    <div className="mt-8 flex flex-row justify-center p-2">
       <div className="w-150 mr-2 flex flex-col items-center">
         <div className="m-2 flex flex-row justify-center border-b border-blue-200 p-2 pb-4 ">
           <div className=" text-2xl font-bold">历史消息</div>

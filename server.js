@@ -3,15 +3,50 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import { sendMail } from "./src/service/MailSend.js";
-import { logUser, findUserExist, insertUser } from "./src/service/DataBase.js";
-import { WebSocketServer } from "ws";
-import { chatByStream, summarize } from "./src/service/OpenAIService.js";
 import {
+  logUser,
+  findUserExist,
+  insertUser,
+  insertData,
+  getPostgreSQLDataByUUID,
+  getDataByTypeAndUserID,
+  getDataByTableName,
+  deleteDataFromPostgreSQL,
+  deleteDataFromPostgreSQLLongTerm,
+} from "./src/service/DataBase.js";
+import {
+  createNewCollectionFromMilvus,
+  insertVectorDataFromMilvus,
+  searchVectorDataFromMilvus,
+  deleteVectorDataFromCollectionFromMilvus,
+} from "./src/service/MilvusVectorDatabase.js";
+import {
+  deleteDataFromPineconeImplicit,
+  deleteDataFromPineconeLongTerm,
+} from "./src/service/VectorDataBase.js";
+import { WebSocketServer } from "ws";
+
+import {
+  ai,
+  createStreamCompletionsByZhipuAI,
+  createCompletionsByZhipuAI,
+  summarizeByZhipuAI,
+  createIamgeByZhipuAI,
+  createEmbeddingsByZhipuAI,
+} from "./src/service/ZhipuAIService.js";
+import {
+  uploadToPostgreSQLAndMilvus,
+  floorFirstByZhipuAI,
+  floorSecondByZhipuAI,
+  floorThirdByZhipuAI,
   uploadToPostgreSQLAndPinecone,
+  uploadFromImpilctToLongTerm,
   floorFirst,
   floorSecond,
   floorThird,
 } from "./src/service/IntegratedServices.js";
+import jwt from "jsonwebtoken";
+
 dotenv.config();
 
 // 打印环境变量测试
@@ -22,14 +57,158 @@ const express_port = 3001;
 const ws_port = 3002;
 const app = express();
 let randomCode = null; //存发出去的验证码
-
 app.use(cors());
 app.use(express.json());
 
 // 创建 WebSocket 服务
 const wss = new WebSocketServer({ port: ws_port });
 
+//ZhipuAI流式输出业务逻辑
 wss.on("connection", (ws) => {
+  ws.on("message", async (message) => {
+    const {
+      user_id,
+      question,
+      topK,
+      portrait,
+      lastElements,
+      userMessage,
+      temperature,
+    } = JSON.parse(message);
+    let messages = [];
+    //业务流一
+    try {
+      const result = await ai.createEmbeddings({
+        model: "embedding-2",
+        input: question,
+      });
+      const embedding = result.data[0].embedding;
+      const queryMilvusResult = await searchVectorDataFromMilvus(
+        "test",
+        embedding,
+        topK,
+      );
+      console.log("这是queryMilvusResult：" + queryMilvusResult);
+      const queryPostgresSQLresult = await Promise.all(
+        queryMilvusResult.map(async (item) => {
+          const data = await getPostgreSQLDataByUUID(item.id);
+          // 可以选择存储原始对象的更多信息，或仅存储获取的数据
+          return data.content;
+        }),
+      );
+      console.log("这是queryPostgresSQLresult：" + queryPostgresSQLresult);
+      messages = await floorSecondByZhipuAI(
+        portrait,
+        question,
+        queryPostgresSQLresult,
+        lastElements,
+        userMessage,
+      );
+      console.log(messages);
+    } catch (error) {
+      console.error("Error with API:", error);
+      ws.send(JSON.stringify({ error: error.message }));
+    }
+    //业务流二
+    try {
+      const data = await ai.createCompletions({
+        model: "glm-4",
+        messages: [{ role: messages.role, content: messages.content }],
+        // 设置为 true 以获取流式输出
+        stream: true,
+      });
+
+      let buffer = ""; // 用于存储不完整的数据块
+      let allChunks = ""; //用于存储传输的文字
+      // 监听 'data' 事件以逐步读取数据
+      data.on("data", (chunk) => {
+        // 将 chunk 转换为字符串
+        const chunkString = chunk.toString();
+
+        if (chunkString === "data: [DONE]") {
+          const finishData = { allChunks: allChunks, finish: true };
+          ws.send(JSON.stringify(finishData));
+          console.log("数据流结束");
+        }
+
+        // 将本次数据块与之前的不完整数据块拼接
+        const combinedChunk = buffer + chunkString;
+
+        // 使用正则表达式匹配出所有 content 字段的值
+        const contentMatches = combinedChunk.match(/"content":"(.*?)"/g);
+
+        if (contentMatches) {
+          for (const match of contentMatches) {
+            // 提取 content 字段的值并输出
+            const content = match.split('"')[3];
+            allChunks += content;
+            const responseData = { allChunks: allChunks, finish: false };
+            ws.send(JSON.stringify(responseData));
+            console.log(content);
+          }
+        }
+
+        // 更新 buffer，存储剩余未处理的部分
+        buffer = combinedChunk.split(
+          contentMatches[contentMatches.length - 1],
+        )[1];
+        // 检查是否收到 "data: [DONE]"
+      });
+
+      // 监听 'end' 事件表示数据流已经结束
+      data.on("end", () => {
+        const finishData = { allChunks: allChunks, finish: true };
+        ws.send(JSON.stringify(finishData));
+        console.log("数据流结束");
+      });
+
+      // 监听 'error' 事件以处理任何错误
+      data.on("error", (err) => {
+        console.error("发生错误:", err);
+      });
+
+      //await floorThirdByZhipuAI(input, user_id, indexNamespace);
+    } catch (error) {
+      console.error("Error with API:", error);
+      ws.send(JSON.stringify({ error: error.message }));
+    }
+    //业务流三
+    try {
+      const conclusionPrompt = await floorThirdByZhipuAI(question);
+      const conclusion = await ai.createCompletions({
+        model: "glm-4",
+        messages: [{ role: "user", content: conclusionPrompt }],
+        stream: false,
+      });
+      const result = conclusion.choices[0].message.content;
+      console.log("这是收到的  " + result);
+
+      //const quotedString = result.replace(/(\w+):/g, '"$1":').replace(/:([^,{}]+)/g, ':"$1"');
+      const jsonArrayString = `[${result}]`;
+      const waittingData = JSON.parse(jsonArrayString);
+      console.log("这是处理后的  " + waittingData);
+      waittingData.map(async (item) => {
+        const type = item.type;
+        const content = item.content;
+        const attitude = item.attitude;
+        await uploadToPostgreSQLAndMilvus(
+          user_id,
+          type,
+          content,
+          attitude,
+          "test",
+        );
+      });
+      console.log("上传成功");
+    } catch (error) {
+      console.error("Error with API:", error);
+      ws.send(JSON.stringify({ error: error.message }));
+    }
+  });
+});
+
+//旧版chatgpt的流式业务逻辑
+/* wss.on("connection", (ws) => {
   ws.on("message", async (message) => {
     const {
       user_id,
@@ -72,13 +251,13 @@ wss.on("connection", (ws) => {
       ws.send(JSON.stringify({ error: error.message }));
     }
   });
-});
+}); */
 
 app.post("/summarize", async (req, res) => {
   try {
     const { finalHistory, createdTime } = req.body;
     console.log(finalHistory, createdTime);
-    const sum = await summarize(finalHistory, createdTime);
+    const sum = await summarizeByZhipuAI(finalHistory, createdTime);
     res.send(sum);
   } catch (error) {
     console.error(error);
@@ -87,18 +266,47 @@ app.post("/summarize", async (req, res) => {
 });
 
 app.post("/log", async (req, res) => {
+  //点击登录
   try {
     const { email, password } = req.body;
     console.log(email, password);
     const { status, isLog } = await logUser(email, password);
-    res.json({ status, isLog });
+    if (isLog) {
+      // Token密钥，应该保存在环境变量中，不要直接硬编码在代码中
+      const secretKey = process.env.JWT_SECRET_KEY || "your_secret_key";
+      // 生成Token
+      const token = jwt.sign({ email: email }, secretKey, { expiresIn: "1h" }); // Token有效期为1小时
+      res.json({ status, isLog, token });
+    } else {
+      res.json({ status, isLog });
+    }
   } catch (error) {
     console.error(error);
     res.status(500).send("Internal Server Error");
   }
 });
 
+const authenticateToken = (req, res, next) => {
+  // 从请求头中获取Token
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // "Bearer TOKEN"
+  if (token == null) return res.sendStatus(401); // 如果没有Token，则返回401
+
+  const secretKey = process.env.JWT_SECRET_KEY || "your_secret_key";
+  jwt.verify(token, secretKey, (err, email) => {
+    if (err) return res.sendStatus(403); // 如果Token无效，则返回403
+    req.email = email;
+    next(); // Token有效，继续处理请求
+  });
+};
+
+app.get("/someProtectedRoute", authenticateToken, (req, res) => {
+  // 访问这个路由需要有效的Token
+  res.send("Access granted to protected data");
+});
+
 app.post("/sendCode", async (req, res) => {
+  //点击发送验证码
   try {
     const { email } = req.body;
     console.log(email);
@@ -119,6 +327,7 @@ app.post("/sendCode", async (req, res) => {
 });
 
 app.post("/register", async (req, res) => {
+  //点击注册
   try {
     const { email, password, code } = req.body;
     console.log(email, password, code);
@@ -141,59 +350,54 @@ app.post("/register", async (req, res) => {
   }
 });
 
+app.post("/returnList", async (req, res) => {
+  //点击发送验证码
+  try {
+    const { tableName } = req.body;
+    const data = await getDataByTableName(tableName);
+    console.log(data);
+    res.json({ data }); // 以JSON格式发送状态
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.post("/submitImplicit", async (req, res) => {
+  //点击发送验证码
+  try {
+    const { uuid } = req.body;
+    await uploadFromImpilctToLongTerm(uuid);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.post("/deleteImplicit", async (req, res) => {
+  //点击发送验证码
+  try {
+    const { uuid } = req.body;
+    await deleteDataFromPineconeImplicit(uuid);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.post("/deleteLongTerm", async (req, res) => {
+  //点击发送验证码
+  try {
+    const { uuid } = req.body;
+    await deleteDataFromPineconeLongTerm(uuid);
+    await deleteDataFromPostgreSQLLongTerm(uuid);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
 // 启动服务器
 app.listen(express_port, "0.0.0.0", () => {
   console.log(`Server is running at http://localhost:${express_port}`);
 });
-
-/* 
-以下是注释掉的部分，如果需要使用，请取消注释并根据您的实际配置进行调整。
-
-// 邮件发送配置
-const transporter = nodemailer.createTransport({
-  service: 'QQ',
-  auth: {
-    user: 'your-email@qq.com',
-    pass: 'your-password',
-  },
-});
-
-app.post('/sendMail', (req, res) => {
-  const { to } = req.body;
-  const receiver = {
-    from: '"Sender Name"<your-email@qq.com>',
-    subject: '验证码',
-    to: to,
-    html: `
-      <h1>你好，你的验证码：</h1>
-      <h1 style="color:red">123456</h1>
-    `,
-  };
-
-  transporter.sendMail(receiver, (error, info) => {
-    if (error) {
-      return res.status(500).json({ error: '发送失败' });
-    }
-    res.status(200).json({ success: '发送成功', response: info.response });
-  });
-});
-
-// Pinecone 数据库查询
-const config = new Pinecone({
-  apiKey: 'your-pinecone-api-key',
-});
-
-app.post('/queryPinecone', async (req, res) => {
-  try {
-    const { vector } = req.body;
-    const index = Pinecone.index('your-index-name');
-    const response = await index.query({
-      vector: vector,
-      topK: 5,
-    });
-    res.status(200).json(response.data.matches);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-*/

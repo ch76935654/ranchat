@@ -1,5 +1,7 @@
 import nodemailer from "nodemailer";
+import dotenv from "dotenv";
 
+dotenv.config();
 //创建一个SMTP客户端配置对象
 const transporter = nodemailer.createTransport({
   // 默认支持的邮箱服务包括：”QQ”、”163”、”126”、”iCloud”、”Hotmail”、”Yahoo”等

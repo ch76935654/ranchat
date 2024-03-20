@@ -1,6 +1,8 @@
 // 导入整个 pg 包
 import pkg from "pg";
+import dotenv from "dotenv";
 
+dotenv.config();
 // 解构出 Pool
 const { Pool } = pkg;
 
@@ -99,23 +101,14 @@ async function insertUser(email, password) {
 }
 
 //postgreSQL插入新数据
-async function insertData(
-  memorySQLSpace,
-  uuid,
-  user_id,
-  type,
-  content,
-  attitude,
-) {
+async function insertData(uuid, user_id, type, content, attitude) {
   // 1. 使用参数连接到数据库
   const client = await pool.connect();
 
   try {
     // 2. 准备 SQL 语句
     const queryText =
-      "INSERT INTO public." +
-      memorySQLSpace +
-      "(uuid, user_id, type, content, attitude) VALUES($1, $2, $3, $4, $5)";
+      "INSERT INTO public.user_long_term_memory(uuid, user_id, type, content, attitude) VALUES($1, $2, $3, $4, $5)";
 
     // 3. 执行 SQL 语句
     const res = await client.query(queryText, [
@@ -144,7 +137,7 @@ async function getPostgreSQLDataByUUID(uuid) {
   try {
     // 准备 SQL 语句
     const queryText =
-      "SELECT * FROM public.user_implicit_memory WHERE uuid = $1";
+      "SELECT * FROM public.user_long_term_memory WHERE uuid = $1";
 
     // 执行 SQL 语句
     const res = await client.query(queryText, [uuid]);
@@ -172,7 +165,7 @@ async function getDataByTypeAndUserID(type, user_id) {
   try {
     // 准备 SQL 语句
     const queryText =
-      "SELECT * FROM public.user_implicit_memory WHERE type = $1 AND user_id = $2";
+      "SELECT * FROM public.user_long_term_memory WHERE type = $1 AND user_id = $2";
 
     // 执行 SQL 语句
     const res = await client.query(queryText, [type, user_id]);
@@ -192,6 +185,73 @@ async function getDataByTypeAndUserID(type, user_id) {
   }
 }
 
+async function getDataByTableName(tableName) {
+  // 使用参数连接到数据库
+  const client = await pool.connect();
+
+  try {
+    // 准备 SQL 语句
+    const queryText = `SELECT * FROM public.${tableName}`;
+
+    // 执行 SQL 语句
+    const res = await client.query(queryText);
+
+    if (res.rows.length > 0) {
+      console.log("查询结果:", res.rows);
+      return res.rows; // 返回所有数据的数组
+    } else {
+      console.log("表中没有数据");
+      return []; // 返回空数组
+    }
+  } catch (err) {
+    console.error("查询错误", err.stack);
+    throw err; // 抛出错误以便上层处理
+  } finally {
+    // 关闭连接
+    client.release();
+  }
+}
+
+async function deleteDataFromPostgreSQL(uuid, user_id) {
+  // 使用参数连接到数据库
+  const client = await pool.connect();
+  try {
+    // 准备 SQL 语句
+    const queryText =
+      "DELETE FROM public.user_long_term_memory WHERE uuid = $1 AND user_id = $2";
+
+    // 执行 SQL 语句
+    await client.query(queryText, [uuid, user_id]);
+
+    console.log("成功删除数据" + uuid + "  " + user_id);
+  } catch (error) {
+    console.log(error);
+  } finally {
+    // 关闭连接
+    client.release();
+  }
+}
+
+async function deleteDataFromPostgreSQLLongTerm(uuid) {
+  // 使用参数连接到数据库
+  const client = await pool.connect();
+  try {
+    // 准备 SQL 语句
+    const queryText =
+      "DELETE FROM public.user_long_term_memory WHERE uuid = $1";
+
+    // 执行 SQL 语句
+    await client.query(queryText, [uuid]);
+
+    console.log("成功删除数据" + uuid);
+  } catch (error) {
+    console.log(error);
+  } finally {
+    // 关闭连接
+    client.release();
+  }
+}
+
 export {
   logUser,
   findUserExist,
@@ -199,4 +259,7 @@ export {
   insertData,
   getPostgreSQLDataByUUID,
   getDataByTypeAndUserID,
+  getDataByTableName,
+  deleteDataFromPostgreSQL,
+  deleteDataFromPostgreSQLLongTerm,
 };

@@ -1,13 +1,18 @@
 import { Pinecone } from "@pinecone-database/pinecone";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const pc = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY,
+  apiKey: process.env.PINECONEKEY,
+  //apiKey: "34f2630b-2f0d-477f-a9ba-61503e5fccf0",
 });
 
 // 连接到Pinecone索引
 const pineconeIndex = pc.index("long-term-memory");
-const lm = pineconeIndex.namespace("user_long_term_memory");
+
 const im = pineconeIndex.namespace("user_implicit_memory");
+const lm = pineconeIndex.namespace("user_long_term_memory");
 
 async function queryPinecone(vector, topK) {
   try {
@@ -34,4 +39,36 @@ async function returnPineconeQueryResult(vector, topK) {
   }
 }
 
-export { pineconeIndex, queryPinecone, returnPineconeQueryResult };
+async function fetchPineconeVectorByUUIDFromImplicit(uuid) {
+  const fetchResult = await im.fetch([uuid]);
+  const vector = fetchResult.records[uuid].values;
+  console.log("成功获取" + uuid + "的向量");
+  return vector;
+}
+
+async function deleteDataFromPineconeImplicit(uuid) {
+  try {
+    await im.deleteOne(uuid);
+    console.log("成功删除数据" + uuid);
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+async function deleteDataFromPineconeLongTerm(uuid) {
+  try {
+    await lm.deleteOne(uuid);
+    console.log("成功删除数据" + uuid);
+  } catch (error) {
+    console.log(error);
+  }
+}
+
+export {
+  pineconeIndex,
+  queryPinecone,
+  returnPineconeQueryResult,
+  fetchPineconeVectorByUUIDFromImplicit,
+  deleteDataFromPineconeImplicit,
+  deleteDataFromPineconeLongTerm,
+};
