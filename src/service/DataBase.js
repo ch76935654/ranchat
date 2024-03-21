@@ -118,9 +118,14 @@ async function insertData(uuid, user_id, type, content, attitude) {
       content,
       attitude,
     ]);
-
     console.log(res.rows[0]); // 打印插入结果
     console.log("postgreSQL上传成功");
+    if (res.rows.length > 0) {
+      console.log("查询结果:", res.rows[0]);
+      return true;
+    } else {
+      return false;
+    }
   } catch (err) {
     console.error(err.stack);
   } finally {
@@ -157,6 +162,33 @@ async function getPostgreSQLDataByUUID(uuid) {
   }
 }
 
+async function updateDataByUUID(uuid, type, content, attitude) {
+  // 使用参数连接到数据库
+  const client = await pool.connect();
+
+  try {
+    // 准备 SQL 语句
+    const queryText =
+      "UPDATE public.user_long_term_memory SET type = $1, content = $2, attitude = $3 WHERE uuid = $4 RETURNING *";
+
+    // 执行 SQL 语句
+    const res = await client.query(queryText, [type, content, attitude, uuid]);
+
+    if (res.rows.length > 0) {
+      console.log("更新后的数据:", res.rows[0]);
+      return true;
+    } else {
+      console.log("没有找到对应的数据进行更新");
+      return false;
+    }
+  } catch (err) {
+    console.error("更新错误", err.stack);
+  } finally {
+    // 关闭连接
+    client.release();
+  }
+}
+
 //根据type和user_id获取数据
 async function getDataByTypeAndUserID(type, user_id) {
   // 使用参数连接到数据库
@@ -185,16 +217,17 @@ async function getDataByTypeAndUserID(type, user_id) {
   }
 }
 
-async function getDataByTableName(tableName) {
+async function getDataByUserId(user_id) {
   // 使用参数连接到数据库
   const client = await pool.connect();
 
   try {
     // 准备 SQL 语句
-    const queryText = `SELECT * FROM public.${tableName}`;
+    const queryText =
+      "SELECT * FROM public.user_long_term_memory WHERE user_id = $1";
 
     // 执行 SQL 语句
-    const res = await client.query(queryText);
+    const res = await client.query(queryText, [user_id]);
 
     if (res.rows.length > 0) {
       console.log("查询结果:", res.rows);
@@ -257,9 +290,10 @@ export {
   findUserExist,
   insertUser,
   insertData,
+  updateDataByUUID,
   getPostgreSQLDataByUUID,
   getDataByTypeAndUserID,
-  getDataByTableName,
+  getDataByUserId,
   deleteDataFromPostgreSQL,
   deleteDataFromPostgreSQLLongTerm,
 };

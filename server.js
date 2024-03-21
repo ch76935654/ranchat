@@ -8,9 +8,10 @@ import {
   findUserExist,
   insertUser,
   insertData,
+  updateDataByUUID,
   getPostgreSQLDataByUUID,
   getDataByTypeAndUserID,
-  getDataByTableName,
+  getDataByUserId,
   deleteDataFromPostgreSQL,
   deleteDataFromPostgreSQLLongTerm,
 } from "./src/service/DataBase.js";
@@ -35,6 +36,7 @@ import {
   createEmbeddingsByZhipuAI,
 } from "./src/service/ZhipuAIService.js";
 import {
+  convertEmailToCollectionName,
   uploadToPostgreSQLAndMilvus,
   floorFirstByZhipuAI,
   floorSecondByZhipuAI,
@@ -66,15 +68,10 @@ const wss = new WebSocketServer({ port: ws_port });
 //ZhipuAI流式输出业务逻辑
 wss.on("connection", (ws) => {
   ws.on("message", async (message) => {
-    const {
-      user_id,
-      question,
-      topK,
-      portrait,
-      lastElements,
-      userMessage,
-      temperature,
-    } = JSON.parse(message);
+    const { user_id, question, topK, portrait, lastElements, userMessage } =
+      JSON.parse(message);
+    const convertName = convertEmailToCollectionName(user_id);
+    const collectionName = "long_term_memory_" + convertName;
     let messages = [];
     //业务流一
     try {
@@ -84,7 +81,7 @@ wss.on("connection", (ws) => {
       });
       const embedding = result.data[0].embedding;
       const queryMilvusResult = await searchVectorDataFromMilvus(
-        "test",
+        collectionName,
         embedding,
         topK,
       );
@@ -196,7 +193,7 @@ wss.on("connection", (ws) => {
           type,
           content,
           attitude,
-          "test",
+          collectionName,
         );
       });
       console.log("上传成功");
@@ -335,6 +332,9 @@ app.post("/register", async (req, res) => {
       const isRegister = insertUser(email, password);
       if (isRegister) {
         const status = "注册成功";
+        const convertName = convertEmailToCollectionName(email);
+        const collectionName = "long_term_memory_" + convertName;
+        await createNewCollectionFromMilvus(collectionName);
         res.json({ status });
       } else {
         const status = "注册失败";
@@ -353,8 +353,8 @@ app.post("/register", async (req, res) => {
 app.post("/returnList", async (req, res) => {
   //点击发送验证码
   try {
-    const { tableName } = req.body;
-    const data = await getDataByTableName(tableName);
+    const { user_id } = req.body;
+    const data = await getDataByUserId(user_id);
     console.log(data);
     res.json({ data }); // 以JSON格式发送状态
   } catch (error) {
@@ -363,22 +363,25 @@ app.post("/returnList", async (req, res) => {
   }
 });
 
-app.post("/submitImplicit", async (req, res) => {
+app.post("/update", async (req, res) => {
   //点击发送验证码
   try {
-    const { uuid } = req.body;
-    await uploadFromImpilctToLongTerm(uuid);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Internal Server Error");
-  }
-});
+    const { user_id, uuid, type, content, attitude } = req.body;
+    //所有数据传过来，重新更新
+    const convertName = convertEmailToCollectionName(user_id);
+    const collectionName = "long_term_memory_" + convertName;
+    await deleteVectorDataFromCollectionFromMilvus(collectionName, uuid);
+    await deleteDataFromPostgreSQL(uuid, user_id);
 
-app.post("/deleteImplicit", async (req, res) => {
-  //点击发送验证码
-  try {
-    const { uuid } = req.body;
-    await deleteDataFromPineconeImplicit(uuid);
+    const status = await uploadToPostgreSQLAndMilvus(
+      user_id,
+      type,
+      content,
+      attitude,
+      collectionName,
+    );
+
+    res.json({ status }); // 以JSON格式发送状态
   } catch (error) {
     console.error(error);
     res.status(500).send("Internal Server Error");
@@ -388,8 +391,10 @@ app.post("/deleteImplicit", async (req, res) => {
 app.post("/deleteLongTerm", async (req, res) => {
   //点击发送验证码
   try {
-    const { uuid } = req.body;
-    await deleteDataFromPineconeLongTerm(uuid);
+    const { user_id, uuid } = req.body;
+    const convertName = convertEmailToCollectionName(user_id);
+    const collectionName = "long_term_memory_" + convertName;
+    await deleteVectorDataFromCollectionFromMilvus(collectionName, uuid);
     await deleteDataFromPostgreSQLLongTerm(uuid);
   } catch (error) {
     console.error(error);

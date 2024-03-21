@@ -2,6 +2,7 @@ import { useAccount } from "./../context/AccountContext";
 
 export default function SettingPage() {
   const {
+    accountEmail,
     accountAPIkey,
     setAccountAPIkey,
     temperature,
@@ -10,6 +11,22 @@ export default function SettingPage() {
     setHistoryNum,
   } = useAccount();
 
+  async function test() {
+    try {
+      const response = await fetch("http://localhost:3001/test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: accountEmail }),
+      });
+
+      const { status } = await response.json();
+      console.log("status:", status);
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }
   return (
     <div className="m-4 flex flex-col items-center">
       <h1>设置页面</h1>
@@ -48,6 +65,7 @@ export default function SettingPage() {
           <div className="mr-2">用户画像</div>
           <textarea className="ml-auto h-96 border" />
         </div>
+        <button onClick={test}>test</button>
       </div>
     </div>
   );

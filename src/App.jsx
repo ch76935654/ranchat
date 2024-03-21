@@ -3,11 +3,10 @@ import { RouterProvider, createBrowserRouter, Outlet } from "react-router-dom";
 import HeaderBar from "./components/HeaderBar";
 import HomePage from "./components/HomePage";
 import LogPage from "./components/LogPage";
-import AssistantPage from "./components/AssistantPage";
 import ChatPage from "./components/ChatPage";
 import DatabaseManage from "./components/DatabaseManage";
 import SettingPage from "./components/SettingPage";
-import OtherPage from "./components/OtherPage";
+
 import Footer from "./components/Footer";
 import { AccountProvider } from "./context/AccountContext";
 
@@ -34,11 +33,6 @@ const router = createBrowserRouter([
         /*         action: createOrderAction, */
       },
       {
-        path: "/assistant",
-        element: <AssistantPage />,
-        /*         action: createOrderAction, */
-      },
-      {
         path: "/chat",
         element: <ChatPage />,
         /*         action: createOrderAction, */
@@ -51,10 +45,7 @@ const router = createBrowserRouter([
         path: "/setting",
         element: <SettingPage />,
       },
-      {
-        path: "/other",
-        element: <OtherPage />,
-      },
+
       /*       {
         path: "/order/:orderId",
         element: <Order />,

@@ -12,7 +12,7 @@ const milvusClient = new MilvusClient({ address, ssl, token });
 
 //创建新向量集合
 async function createNewCollectionFromMilvus(collectionName) {
-  await milvusClient.createCollection({
+  const first = await milvusClient.createCollection({
     collection_name: collectionName,
     fields: [
       {
@@ -30,17 +30,19 @@ async function createNewCollectionFromMilvus(collectionName) {
     enableDynamicField: true,
   });
   //创建索引
+  console.log(first);
   const index_params = {
     metric_type: "L2",
     index_type: "IVF_FLAT",
     params: JSON.stringify({ nlist: 1024 }),
   };
-  await milvusClient.createIndex({
+  const second = await milvusClient.createIndex({
     collection_name: collectionName,
     index_name: "embedding",
     field_name: "embedding",
     extra_params: index_params,
   });
+  console.log(second);
 }
 
 //插入向量数据

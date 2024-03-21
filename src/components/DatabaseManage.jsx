@@ -1,36 +1,103 @@
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import MySVG from "../assets/arrow.svg"; // 导入SVG文件
+import { useAccount } from "./../context/AccountContext";
 
 export default function DatabaseManage() {
-  const [implicitList, setImplicitList] = useState([]);
-  const [longTermList, setLongTermList] = useState([]);
+  const { accountEmail, setAccountEmail } = useAccount();
 
-  async function handleUpdateList(tableName) {
+  const [longTermList, setLongTermList] = useState([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [selectCreatedAt, setSelectCreatedAt] = useState("");
+  const [selectUpdatedAt, setSelectUpdatedAt] = useState("");
+  const [selectType, setSelectType] = useState("");
+  const [selectContent, setSelectContent] = useState("");
+  const [selectAttitude, setSelectAttitude] = useState("");
+
+  useEffect(() => {
+    handleUpdateList(accountEmail);
+  }, []);
+
+  useEffect(() => {
+    if (selectedId !== "") {
+      const filteredList = longTermList.filter(
+        (item) => item.uuid === selectedId,
+      );
+      if (filteredList.length > 0) {
+        setSelectCreatedAt(filteredList[0].created_at);
+        setSelectUpdatedAt(filteredList[0].updated_at);
+        setSelectType(filteredList[0].type);
+        setSelectContent(filteredList[0].content);
+        setSelectAttitude(filteredList[0].attitude);
+      }
+    }
+  }, [selectedId, longTermList]);
+
+  async function handleUpdateList(user_id) {
     try {
       const response = await fetch("http://localhost:3001/returnList", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ tableName }),
+        body: JSON.stringify({ user_id }),
       });
       if (!response.ok) {
         throw new Error("Network response was not ok");
       }
       const { data } = await response.json();
-      if (tableName === "user_implicit_memory") setImplicitList(data);
-      if (tableName === "user_long_term_memory") setLongTermList(data);
+      setLongTermList(data);
     } catch (error) {
       console.error("Error:", error);
     }
   }
 
-  useEffect(() => {
-    handleUpdateList("user_implicit_memory");
-    handleUpdateList("user_long_term_memory");
-  }, []);
-
+  async function handleUpdate() {
+    try {
+      const response = await fetch("http://localhost:3001/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: accountEmail,
+          uuid: selectedId,
+          type: selectType,
+          content: selectContent,
+          attitude: selectAttitude,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Network response was not ok");
+      }
+      const { status } = await response.json();
+      if (status) {
+        console.log("更新成功");
+        handleUpdateList(accountEmail);
+        setSelectedId("");
+        setSelectCreatedAt("");
+        setSelectUpdatedAt("");
+        setSelectType("");
+        setSelectContent("");
+        setSelectAttitude("");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }
+  function handleRecover() {
+    if (selectedId !== "") {
+      const filteredList = longTermList.filter(
+        (item) => item.uuid === selectedId,
+      );
+      if (filteredList.length > 0) {
+        setSelectCreatedAt(filteredList[0].created_at);
+        setSelectUpdatedAt(filteredList[0].updated_at);
+        setSelectType(filteredList[0].type);
+        setSelectContent(filteredList[0].content);
+        setSelectAttitude(filteredList[0].attitude);
+      }
+    }
+  }
   return (
     <div className=" mx-auto my-8 flex flex-row">
       <div className="  ">
@@ -42,6 +109,7 @@ export default function DatabaseManage() {
             return (
               <LongTermListItem
                 key={item.uuid}
+                accountEmail={accountEmail}
                 createdTime={item.created_at}
                 updatedTime={item.updated_at}
                 uuid={item.uuid}
@@ -50,6 +118,7 @@ export default function DatabaseManage() {
                 attitude={item.attitude}
                 longTermList={longTermList}
                 setLongTermList={setLongTermList}
+                setSelectedId={setSelectedId}
               />
             );
           })}
@@ -93,42 +162,70 @@ export default function DatabaseManage() {
             <div className="border-r-2 pr-4 text-3xl font-bold tracking-[5px]">
               创建时间
             </div>
-            <div className="ml-4 p-1 text-xl">2024-03-01T09:17:50.764Z</div>
+            <div className="ml-4 p-1 text-xl">
+              {selectCreatedAt ? selectCreatedAt : "点击修改后加载"}
+            </div>
           </div>
           <div className="flex flex-row border-b p-4">
             <div className="border-r-2 pr-4 text-3xl font-bold tracking-[5px]">
               更新时间
             </div>
-            <div className="ml-4 p-1 text-xl">dddd</div>
+            <div className="ml-4 p-1 text-xl">
+              {selectUpdatedAt ? selectUpdatedAt : "点击修改后加载"}
+            </div>
           </div>
           <div className="flex flex-row border-b p-4">
             <div className="rounded border-r-2 pr-4 text-3xl font-bold tracking-[5px]">
               类型
             </div>
-            <input className="ml-4 w-[450px] p-1 text-xl" placeholder="ddd" />
+            <input
+              value={selectType}
+              onChange={(e) => {
+                setSelectType(e.target.value);
+              }}
+              className="ml-4 w-[450px] rounded p-1 text-xl"
+              placeholder="点击修改后加载"
+            />
           </div>
           <div className="flex  flex-row border-b p-4">
             <div className="border-r-2 pr-4 text-3xl font-bold tracking-[5px]">
               内容
             </div>
-            <textarea className="ml-4 h-[500px] w-[450px] resize-none rounded p-1 text-xl" />
+            <textarea
+              value={selectContent}
+              onChange={(e) => {
+                setSelectContent(e.target.value);
+              }}
+              className="ml-4 h-[500px] w-[450px] resize-none rounded p-1 text-xl"
+              placeholder="点击修改后加载"
+            />
           </div>
           <div className="flex flex-row border-b p-4">
             <div className="border-r-2 pr-4 text-3xl font-bold tracking-[5px]">
               态度
             </div>
             <textarea
+              value={selectAttitude}
+              onChange={(e) => {
+                setSelectAttitude(e.target.value);
+              }}
               className="ml-4 h-[200px] w-[450px] resize-none rounded p-1 text-xl"
-              placeholder="ddd"
+              placeholder="点击修改后加载"
             />
           </div>
           <div className="mt-auto flex flex-row justify-between px-6 py-4">
-            <button className="ml-2 rounded bg-blue-300 px-24 py-4 text-2xl">
-              提交
+            <button
+              className="ml-2 rounded bg-blue-300 px-24 py-4 text-2xl"
+              onClick={handleUpdate}
+            >
+              更新
             </button>
             <div className="border"></div>
-            <button className="mr-2 rounded bg-blue-300 px-24 text-2xl">
-              删除
+            <button
+              className="mr-2 rounded bg-blue-300 px-24 text-2xl"
+              onClick={handleRecover}
+            >
+              恢复
             </button>
           </div>
         </div>
@@ -138,6 +235,7 @@ export default function DatabaseManage() {
 }
 
 function LongTermListItem({
+  accountEmail,
   createdTime,
   updatedTime,
   uuid,
@@ -146,6 +244,7 @@ function LongTermListItem({
   attitude,
   longTermList,
   setLongTermList,
+  setSelectedId,
 }) {
   function handleDeleteLongTerm() {
     try {
@@ -154,7 +253,7 @@ function LongTermListItem({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ uuid }),
+        body: JSON.stringify({ user_id: accountEmail, uuid }),
       });
 
       const newLongTermList = longTermList
@@ -170,34 +269,43 @@ function LongTermListItem({
   return (
     <div className="m-3 flex-col rounded-lg bg-blue-200 hover:shadow-lg">
       <div className="flex flex-row p-4">
-        <div className="">创建时间</div>
-        <div className="ml-4">{createdTime}</div>
-        <button className="ml-auto bg-red-200">修改</button>
-        <button className="ml-4 bg-red-200" onClick={handleDeleteLongTerm}>
-          删除
+        <div className="text-xl">创建时间</div>
+        <div className="ml-4 p-1">{createdTime}</div>
+        <button
+          className="ml-auto rounded-lg bg-red-200 px-4 py-2"
+          onClick={() => setSelectedId(uuid)}
+        >
+          修 改
+        </button>
+        <button
+          className="ml-6 rounded-lg bg-red-200 px-4 py-2"
+          onClick={handleDeleteLongTerm}
+        >
+          删 除
         </button>
       </div>
       <div className="flex flex-row p-4">
-        <div className="">更新时间</div>
-        <div className="ml-4">{updatedTime}</div>
+        <div className="text-xl">更新时间</div>
+        <div className="ml-4 p-1">{updatedTime}</div>
       </div>
       <div className="flex flex-row p-4">
-        <div>类型</div>
-        <div className="ml-4">{type}</div>
+        <div className="text-xl">类型</div>
+        <div className="ml-4 p-1">{type}</div>
       </div>
       <div className="flex flex-row p-4">
-        <div className="">内容</div>
-        <div className="ml-4">{content}</div>
+        <div className="text-xl">内容</div>
+        <div className="ml-4 p-1">{content}</div>
       </div>
       <div className="flex flex-row p-4">
-        <div className="">态度</div>
-        <div className="ml-4">{attitude}</div>
+        <div className="text-xl">态度</div>
+        <div className="ml-4 p-1">{attitude}</div>
       </div>
     </div>
   );
 }
 
 LongTermListItem.propTypes = {
+  accountEmail: PropTypes.string.isRequired,
   createdTime: PropTypes.any.isRequired, // 这里需要根据实际情况修改验证规则
   updatedTime: PropTypes.any.isRequired,
   uuid: PropTypes.string.isRequired,
@@ -206,4 +314,5 @@ LongTermListItem.propTypes = {
   attitude: PropTypes.string.isRequired,
   longTermList: PropTypes.array.isRequired,
   setLongTermList: PropTypes.func.isRequired,
+  setSelectedId: PropTypes.func.isRequired,
 };

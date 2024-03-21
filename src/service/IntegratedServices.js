@@ -21,6 +21,12 @@ import {
 } from "./MilvusVectorDatabase.js";
 import { v4 as uuidv4 } from "uuid";
 //--------------------这里是Milvus+PostgreSQL的代码--------------------
+function convertEmailToCollectionName(email) {
+  // 移除邮箱中的 @ 符号和 .com 部分
+  var collectionName = email.replace("@", "").replace(".com", "");
+  return collectionName;
+}
+
 async function uploadToPostgreSQLAndMilvus(
   user_id,
   type,
@@ -33,6 +39,7 @@ async function uploadToPostgreSQLAndMilvus(
   await insertVectorDataFromMilvus(collectionName, uuid, embedding);
   console.log(uuid + ` Vector uploaded successfully.`);
   await insertData(uuid, user_id, type, content, attitude);
+  return true;
 }
 
 //假设类型现在有：文本(text)、事件(event)、兴趣(interest)、人物(character)；
@@ -259,6 +266,7 @@ async function floorThird(question, user_id, indexNamespace) {
 }
 //1. 如果问题描述涉及到人或提到了名字，返回数据类型type为character,content为相关的那一整句话，attitude为我对这个人的态度，喜欢还是讨厌。\n2. 如果问题中提到了喜欢、兴趣、计划或爱好等，返回数据类型type为interest，content为相关的那一整句话，attitude为我对这件事的态度，有多喜欢，喜欢到什么程度\n3. 如果问题提及书籍、电影、笔记、文章或任何文字记录的内容，返回数据类型type为text，content为相关的一整段描述，attitude为对这个东西是否喜爱。\n4. 如果问题描述了一件事，如与某人的互动、当前发生的事、事情的经过或某地的见闻等，返回数据类型type为event，content为这件事情的完整经过，attitude为我对这件事情的看法。
 export {
+  convertEmailToCollectionName,
   uploadToPostgreSQLAndMilvus,
   floorFirstByZhipuAI,
   floorSecondByZhipuAI,

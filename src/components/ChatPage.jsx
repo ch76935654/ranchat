@@ -10,8 +10,11 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { atomDark as dark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import ModalImage from "react-modal-image";
 import PropTypes from "prop-types";
+import { useAccount } from "./../context/AccountContext";
 
 export default function Chatbox() {
+  const { accountEmail, setAccountEmail } = useAccount();
+
   const [input, setInput] = useState(""); //用户输入
   const [sliceHistory, setSliceHistory] = useState([]); //聊天框历史记录
   const [allHistory, setAllHistory] = useState([]); //所有聊天记录
@@ -41,6 +44,9 @@ export default function Chatbox() {
   const socket = useRef(null); // 使用 useRef 保持对 WebSocket 的引用
 
   let finalHistory = [];
+  useEffect(() => {
+    setUser_id(accountEmail);
+  }, [accountEmail]);
   // WebSocket 连接建立
   useEffect(() => {
     socket.current = new WebSocket("ws://localhost:3002/");
