@@ -3,12 +3,14 @@ import { ZhipuAI } from "zhipuai-sdk-nodejs-v4";
 
 dotenv.config();
 
-const ai = new ZhipuAI({
-  apiKey: process.env.ZHIPUAI_API_KEY,
-});
+function createZhipuAIByApiKey(Key) {
+  return new ZhipuAI({
+    apiKey: Key,
+  });
+}
 
-async function createEmbeddingsByZhipuAI(question) {
-  const result = await ai.createEmbeddings({
+async function createEmbeddingsByZhipuAI(myAPI, question) {
+  const result = await myAPI.createEmbeddings({
     model: "embedding-2",
     input: question,
   });
@@ -18,19 +20,19 @@ async function createEmbeddingsByZhipuAI(question) {
 }
 
 // 图像生成
-async function createIamgeByZhipuAI() {
-  const result = await ai.createImages({
+async function createIamgeByZhipuAI(myAPI, question) {
+  const result = await myAPI.createImages({
     model: "cogview-3",
-    prompt: "粉紫色的聊天界面",
+    prompt: question,
   });
   console.log(result.data, "image url list");
 }
 
 //文本生成
-async function createCompletionsByZhipuAI(message) {
-  const data = await ai.createCompletions({
+async function createCompletionsByZhipuAI(myAPI, text) {
+  const data = await myAPI.createCompletions({
     model: "glm-4",
-    messages: message,
+    messages: [{ role: "user", content: text }],
     stream: false,
   });
   const result = data.choices[0].message.content;
@@ -38,24 +40,23 @@ async function createCompletionsByZhipuAI(message) {
   return result;
 }
 
-async function createStreamCompletionsByZhipuAI(userMessage, temperature) {
-  const data = await ai.createCompletions({
+async function createStreamCompletionsByZhipuAI(myAPI, userMessage) {
+  const data = await myAPI.createCompletions({
     model: "glm-4",
     messages: [{ role: userMessage.role, content: userMessage.content }],
-    temperature: Number(temperature || 0.95),
     stream: true,
   });
   return data;
 }
 
-async function summarizeByZhipuAI(finalHistory, createdTime) {
+async function summarizeByZhipuAI(myAPI, finalHistory, createdTime) {
   const result = finalHistory.map((h) => ({
     role: h.role,
     content: h.content,
   }));
   const date = new Date(Number(createdTime));
   try {
-    const completion = await ai.createCompletions({
+    const completion = await myAPI.createCompletions({
       model: "glm-4",
       messages: [
         ...result,
@@ -77,7 +78,7 @@ async function summarizeByZhipuAI(finalHistory, createdTime) {
 }
 
 export {
-  ai,
+  createZhipuAIByApiKey,
   createStreamCompletionsByZhipuAI,
   createCompletionsByZhipuAI,
   summarizeByZhipuAI,

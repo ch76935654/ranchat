@@ -1,11 +1,17 @@
 import ranchatLogo from "../assets/ranchat.png";
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useAccount } from "./../context/AccountContext";
 
 export default function HeaderBar() {
-  const { accountEmail, setAccountEmail } = useAccount();
-  const [hasLogin, setHasLogin] = useState(false);
+  const {
+    accountEmail,
+    setAccountEmail,
+    canWork,
+    setCanWork,
+    hasLogin,
+    setHasLogin,
+  } = useAccount();
 
   useEffect(() => {
     if (accountEmail) {
@@ -15,8 +21,10 @@ export default function HeaderBar() {
     }
   }, [accountEmail]);
 
-  function handleLogOut() {
+  async function handleLogOut() {
     setAccountEmail(null);
+    setCanWork(false);
+    localStorage.removeItem("ranchat");
   }
 
   return (
@@ -31,16 +39,22 @@ export default function HeaderBar() {
             主页
           </Link>
           <Link
-            to="/chat"
-            className="mr-5 hover:text-gray-900"
+            to={hasLogin ? "/chat" : "/log"}
+            className={`mr-5 hover:text-gray-900 ${!canWork && !hasLogin ? "pointer-events-none text-gray-400" : ""}`}
             state={{ email: "value" }}
           >
             聊天
           </Link>
-          <Link to="/database" className="mr-5 hover:text-gray-900">
+          <Link
+            to={hasLogin ? "/database" : "/log"}
+            className={`mr-5 hover:text-gray-900 ${!canWork && !hasLogin ? "pointer-events-none text-gray-400" : ""}`}
+          >
             数据库管理
           </Link>
-          <Link to="/setting" className="mr-5 hover:text-gray-900">
+          <Link
+            to={hasLogin ? "/setting" : "/log"}
+            className="mr-5 hover:text-gray-900"
+          >
             设置
           </Link>
         </nav>

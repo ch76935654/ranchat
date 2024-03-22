@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { useAccount } from "./../context/AccountContext";
+import { useNavigate } from "react-router-dom";
 
 export default function LogPage() {
-  const { accountEmail, setAccountEmail } = useAccount();
+  const { setAccountEmail } = useAccount();
+
+  const navigate = useNavigate();
 
   const [logging, setLogging] = useState(true); //登录or注册
   const [email, setEmail] = useState(""); //邮箱
@@ -23,8 +26,12 @@ export default function LogPage() {
         setStatus(data.status);
         if (data.isLog) {
           setAccountEmail(email);
-          localStorage.setItem("token", data.token);
-          //跳转到主页
+          const userData = { account: email, apikey: "请输入API Key" };
+          localStorage.setItem("ranchat", JSON.stringify(userData));
+          //跳转到设置
+          setTimeout(() => {
+            navigate("/setting");
+          }, 2000);
         }
       })
       .catch((error) => {
@@ -66,7 +73,13 @@ export default function LogPage() {
         .then((data) => {
           setStatus(data.status);
           if (data.status === "注册成功") {
-            localStorage.setItem("token", data.token);
+            setAccountEmail(email);
+            const userData = { account: email, apikey: "" };
+            localStorage.setItem("ranchat", JSON.stringify(userData));
+            //跳转到设置
+            setTimeout(() => {
+              navigate("/setting");
+            }, 2000);
           }
         })
         .catch((error) => {
@@ -84,36 +97,7 @@ export default function LogPage() {
         <h2 className="mb-8 text-center text-2xl font-semibold text-gray-700">
           IndiviMosaic AI
         </h2>
-        {logging ? (
-          <>
-            <div className="mb-4">
-              <button className="w-full rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none">
-                <i className="fab fa-facebook-f mr-2"></i>Continue with
-                Facebook(暂不可用)
-              </button>
-            </div>
 
-            <div className="mb-8">
-              <button className="w-full rounded bg-red-500 px-4 py-2 text-white hover:bg-red-700 focus:outline-none">
-                <i className="fab fa-google mr-2"></i>Continue with
-                Google(暂不可用)
-              </button>
-            </div>
-
-            <div className="mb-6 flex items-center justify-between">
-              <span className="w-1/5 border-b lg:w-1/4 dark:border-gray-600"></span>
-
-              <a
-                href="#"
-                className="text-center text-xs uppercase text-gray-500"
-              >
-                or 邮箱登录
-              </a>
-
-              <span className="w-1/5 border-b lg:w-1/4 dark:border-gray-400"></span>
-            </div>
-          </>
-        ) : null}
         <div className="mb-4">
           <label className="mb-2 block text-sm text-gray-600">邮箱</label>
           <input

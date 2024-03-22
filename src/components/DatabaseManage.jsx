@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { useAccount } from "./../context/AccountContext";
 
 export default function DatabaseManage() {
-  const { accountEmail, setAccountEmail } = useAccount();
+  const { accountEmail, accountAPIkey } = useAccount();
 
   const [longTermList, setLongTermList] = useState([]);
   const [selectedId, setSelectedId] = useState("");
@@ -59,6 +59,7 @@ export default function DatabaseManage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          apiKey: accountAPIkey,
           user_id: accountEmail,
           uuid: selectedId,
           type: selectType,
@@ -84,6 +85,7 @@ export default function DatabaseManage() {
       console.error("Error:", error);
     }
   }
+
   function handleRecover() {
     if (selectedId !== "") {
       const filteredList = longTermList.filter(
@@ -100,9 +102,11 @@ export default function DatabaseManage() {
   }
   return (
     <div className=" mx-auto my-8 flex flex-row">
-      <div className="  ">
-        <div className="flex h-[70px] flex-row justify-center rounded-t-lg bg-slate-400 shadow-lg">
-          <div className="m-4 text-4xl tracking-[10px]">记忆数据管理</div>
+      <div className="shadow-md hover:shadow-lg">
+        <div className="flex h-[70px] flex-row justify-center rounded-t-lg bg-purple-200 shadow-lg">
+          <div className="m-4 text-4xl font-bold tracking-[10px]">
+            记忆数据管理
+          </div>
         </div>
         <div className=" h-max-[1000px] h-[1000px] w-[600px] flex-col overflow-auto rounded-b border shadow">
           {longTermList.map((item) => {
@@ -134,7 +138,7 @@ export default function DatabaseManage() {
         >
           <path
             d="M5 12H19M19 12L13 6M19 12L13 18"
-            stroke="#0891B2"
+            stroke="#BFDBFE"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -149,7 +153,7 @@ export default function DatabaseManage() {
         >
           <path
             d="M5 12H19M19 12L13 6M19 12L13 18"
-            stroke="#0891B2"
+            stroke="#BFDBFE"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -157,9 +161,9 @@ export default function DatabaseManage() {
         </svg>
       </div>
       <div>
-        <div className="h-max-[1070px] flex h-[1070px] w-[600px] flex-col rounded border bg-slate-300">
+        <div className="h-max-[1070px] flex h-[1070px] w-[600px] flex-col rounded-lg border bg-purple-200 shadow-md hover:shadow-lg">
           <div className="flex flex-row border-b p-4">
-            <div className="border-r-2 pr-4 text-3xl font-bold tracking-[5px]">
+            <div className="border-r-2 pr-4 text-3xl font-bold tracking-[5px] ">
               创建时间
             </div>
             <div className="ml-4 p-1 text-xl">
@@ -183,7 +187,7 @@ export default function DatabaseManage() {
               onChange={(e) => {
                 setSelectType(e.target.value);
               }}
-              className="ml-4 w-[450px] rounded p-1 text-xl"
+              className="ml-4 w-[450px] rounded px-2 py-1 text-xl"
               placeholder="点击修改后加载"
             />
           </div>
@@ -196,7 +200,7 @@ export default function DatabaseManage() {
               onChange={(e) => {
                 setSelectContent(e.target.value);
               }}
-              className="ml-4 h-[500px] w-[450px] resize-none rounded p-1 text-xl"
+              className="ml-4 h-[500px] w-[450px] resize-none rounded px-2 py-1 text-xl"
               placeholder="点击修改后加载"
             />
           </div>
@@ -209,23 +213,23 @@ export default function DatabaseManage() {
               onChange={(e) => {
                 setSelectAttitude(e.target.value);
               }}
-              className="ml-4 h-[200px] w-[450px] resize-none rounded p-1 text-xl"
+              className="ml-4 h-[200px] w-[450px] resize-none rounded px-2 py-1 text-xl"
               placeholder="点击修改后加载"
             />
           </div>
           <div className="mt-auto flex flex-row justify-between px-6 py-4">
             <button
-              className="ml-2 rounded bg-blue-300 px-24 py-4 text-2xl"
+              className="ml-2 rounded bg-blue-200 px-24 py-4 text-2xl hover:bg-blue-300"
               onClick={handleUpdate}
             >
-              更新
+              更 新
             </button>
             <div className="border"></div>
             <button
-              className="mr-2 rounded bg-blue-300 px-24 text-2xl"
+              className="mr-2 rounded bg-blue-200 px-24 text-2xl hover:bg-blue-300"
               onClick={handleRecover}
             >
-              恢复
+              恢 复
             </button>
           </div>
         </div>
@@ -267,18 +271,18 @@ function LongTermListItem({
   }
 
   return (
-    <div className="m-3 flex-col rounded-lg bg-blue-200 hover:shadow-lg">
+    <div className="m-3 flex-col rounded-lg bg-purple-100 hover:shadow-lg">
       <div className="flex flex-row p-4">
         <div className="text-xl">创建时间</div>
         <div className="ml-4 p-1">{createdTime}</div>
         <button
-          className="ml-auto rounded-lg bg-red-200 px-4 py-2"
+          className="ml-auto rounded-lg bg-red-200 px-4 py-2 hover:bg-red-300"
           onClick={() => setSelectedId(uuid)}
         >
           修 改
         </button>
         <button
-          className="ml-6 rounded-lg bg-red-200 px-4 py-2"
+          className="ml-6 rounded-lg bg-red-200 px-4 py-2 hover:bg-red-300"
           onClick={handleDeleteLongTerm}
         >
           删 除

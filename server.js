@@ -7,47 +7,28 @@ import {
   logUser,
   findUserExist,
   insertUser,
-  insertData,
-  updateDataByUUID,
-  getPostgreSQLDataByUUID,
-  getDataByTypeAndUserID,
+  getPostgreSQLDataByUUIDAndUserId,
   getDataByUserId,
   deleteDataFromPostgreSQL,
-  deleteDataFromPostgreSQLLongTerm,
-} from "./src/service/DataBase.js";
+} from "./src/service/PostgreSQLDataBase.js";
 import {
   createNewCollectionFromMilvus,
-  insertVectorDataFromMilvus,
   searchVectorDataFromMilvus,
   deleteVectorDataFromCollectionFromMilvus,
 } from "./src/service/MilvusVectorDatabase.js";
-import {
-  deleteDataFromPineconeImplicit,
-  deleteDataFromPineconeLongTerm,
-} from "./src/service/VectorDataBase.js";
 import { WebSocketServer } from "ws";
 
 import {
-  ai,
-  createStreamCompletionsByZhipuAI,
+  createZhipuAIByApiKey,
   createCompletionsByZhipuAI,
   summarizeByZhipuAI,
-  createIamgeByZhipuAI,
-  createEmbeddingsByZhipuAI,
 } from "./src/service/ZhipuAIService.js";
 import {
   convertEmailToCollectionName,
   uploadToPostgreSQLAndMilvus,
-  floorFirstByZhipuAI,
   floorSecondByZhipuAI,
   floorThirdByZhipuAI,
-  uploadToPostgreSQLAndPinecone,
-  uploadFromImpilctToLongTerm,
-  floorFirst,
-  floorSecond,
-  floorThird,
 } from "./src/service/IntegratedServices.js";
-import jwt from "jsonwebtoken";
 
 dotenv.config();
 
@@ -68,14 +49,22 @@ const wss = new WebSocketServer({ port: ws_port });
 //ZhipuAI流式输出业务逻辑
 wss.on("connection", (ws) => {
   ws.on("message", async (message) => {
-    const { user_id, question, topK, portrait, lastElements, userMessage } =
-      JSON.parse(message);
+    const {
+      apiKey,
+      user_id,
+      question,
+      topK,
+      portrait,
+      lastElements,
+      userMessage,
+    } = JSON.parse(message);
+    const myAPI = createZhipuAIByApiKey(apiKey);
     const convertName = convertEmailToCollectionName(user_id);
     const collectionName = "long_term_memory_" + convertName;
     let messages = [];
     //业务流一
     try {
-      const result = await ai.createEmbeddings({
+      const result = await myAPI.createEmbeddings({
         model: "embedding-2",
         input: question,
       });
@@ -88,7 +77,7 @@ wss.on("connection", (ws) => {
       console.log("这是queryMilvusResult：" + queryMilvusResult);
       const queryPostgresSQLresult = await Promise.all(
         queryMilvusResult.map(async (item) => {
-          const data = await getPostgreSQLDataByUUID(item.id);
+          const data = await getPostgreSQLDataByUUIDAndUserId(item.id, user_id);
           // 可以选择存储原始对象的更多信息，或仅存储获取的数据
           return data.content;
         }),
@@ -108,7 +97,7 @@ wss.on("connection", (ws) => {
     }
     //业务流二
     try {
-      const data = await ai.createCompletions({
+      const data = await myAPI.createCompletions({
         model: "glm-4",
         messages: [{ role: messages.role, content: messages.content }],
         // 设置为 true 以获取流式输出
@@ -172,7 +161,7 @@ wss.on("connection", (ws) => {
     //业务流三
     try {
       const conclusionPrompt = await floorThirdByZhipuAI(question);
-      const conclusion = await ai.createCompletions({
+      const conclusion = await myAPI.createCompletions({
         model: "glm-4",
         messages: [{ role: "user", content: conclusionPrompt }],
         stream: false,
@@ -189,6 +178,7 @@ wss.on("connection", (ws) => {
         const content = item.content;
         const attitude = item.attitude;
         await uploadToPostgreSQLAndMilvus(
+          myAPI,
           user_id,
           type,
           content,
@@ -252,9 +242,10 @@ wss.on("connection", (ws) => {
 
 app.post("/summarize", async (req, res) => {
   try {
-    const { finalHistory, createdTime } = req.body;
+    const { apiKey, finalHistory, createdTime } = req.body;
     console.log(finalHistory, createdTime);
-    const sum = await summarizeByZhipuAI(finalHistory, createdTime);
+    const myAPI = createZhipuAIByApiKey(apiKey);
+    const sum = await summarizeByZhipuAI(myAPI, finalHistory, createdTime);
     res.send(sum);
   } catch (error) {
     console.error(error);
@@ -270,10 +261,8 @@ app.post("/log", async (req, res) => {
     const { status, isLog } = await logUser(email, password);
     if (isLog) {
       // Token密钥，应该保存在环境变量中，不要直接硬编码在代码中
-      const secretKey = process.env.JWT_SECRET_KEY || "your_secret_key";
-      // 生成Token
-      const token = jwt.sign({ email: email }, secretKey, { expiresIn: "1h" }); // Token有效期为1小时
-      res.json({ status, isLog, token });
+
+      res.json({ status, isLog });
     } else {
       res.json({ status, isLog });
     }
@@ -281,25 +270,6 @@ app.post("/log", async (req, res) => {
     console.error(error);
     res.status(500).send("Internal Server Error");
   }
-});
-
-const authenticateToken = (req, res, next) => {
-  // 从请求头中获取Token
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // "Bearer TOKEN"
-  if (token == null) return res.sendStatus(401); // 如果没有Token，则返回401
-
-  const secretKey = process.env.JWT_SECRET_KEY || "your_secret_key";
-  jwt.verify(token, secretKey, (err, email) => {
-    if (err) return res.sendStatus(403); // 如果Token无效，则返回403
-    req.email = email;
-    next(); // Token有效，继续处理请求
-  });
-};
-
-app.get("/someProtectedRoute", authenticateToken, (req, res) => {
-  // 访问这个路由需要有效的Token
-  res.send("Access granted to protected data");
 });
 
 app.post("/sendCode", async (req, res) => {
@@ -366,14 +336,16 @@ app.post("/returnList", async (req, res) => {
 app.post("/update", async (req, res) => {
   //点击发送验证码
   try {
-    const { user_id, uuid, type, content, attitude } = req.body;
+    const { apiKey, user_id, uuid, type, content, attitude } = req.body;
     //所有数据传过来，重新更新
+    const myAPI = createZhipuAIByApiKey(apiKey);
     const convertName = convertEmailToCollectionName(user_id);
     const collectionName = "long_term_memory_" + convertName;
     await deleteVectorDataFromCollectionFromMilvus(collectionName, uuid);
     await deleteDataFromPostgreSQL(uuid, user_id);
 
     const status = await uploadToPostgreSQLAndMilvus(
+      myAPI,
       user_id,
       type,
       content,
@@ -395,7 +367,24 @@ app.post("/deleteLongTerm", async (req, res) => {
     const convertName = convertEmailToCollectionName(user_id);
     const collectionName = "long_term_memory_" + convertName;
     await deleteVectorDataFromCollectionFromMilvus(collectionName, uuid);
-    await deleteDataFromPostgreSQLLongTerm(uuid);
+    await deleteDataFromPostgreSQL(uuid, user_id);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.post("/testWork", async (req, res) => {
+  //点击发送验证码
+  try {
+    const { apiKey } = req.body;
+    //所有数据传过来，重新更新
+    const myAPI = createZhipuAIByApiKey(apiKey);
+    const text = "你好";
+    const status = await createCompletionsByZhipuAI(myAPI, text);
+    if (status) {
+      res.json({ status });
+    }
   } catch (error) {
     console.error(error);
     res.status(500).send("Internal Server Error");

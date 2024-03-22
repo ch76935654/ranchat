@@ -13,40 +13,33 @@ import PropTypes from "prop-types";
 import { useAccount } from "./../context/AccountContext";
 
 export default function Chatbox() {
-  const { accountEmail, setAccountEmail } = useAccount();
+  const {
+    accountEmail,
+    accountAPIkey,
+    portrait,
+    length,
+    sliceHistory,
+    setSliceHistory,
+    allHistory,
+    setAllHistory,
+    titleAndTime,
+    setTitleAndTime,
+  } = useAccount();
 
   const [input, setInput] = useState(""); //用户输入
-  const [sliceHistory, setSliceHistory] = useState([]); //聊天框历史记录
-  const [allHistory, setAllHistory] = useState([]); //所有聊天记录
+
   const [isSending, setIsSending] = useState(false); //是否正在发送邮件
   const [firstOpen, setFirstOpen] = useState(true); //是否是第一次打开
-  const [titleAndTime, setTitleAndTime] = useState(["新对话", "新建时间", ""]); //标题和时间
-  const [isSetting, setIsSetting] = useState(false); //是否正在设置
-  const [user_id, setUser_id] = useState("2090244567@qq.com");
 
-  const [apiKey, setApiKey] = useState(
-    "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",
-  ); //openai key
-  const [temperature, setTemperature] = useState(1); //发散度
-  const [length, setLength] = useState(10); //结合上下文
+  const [isSetting, setIsSetting] = useState(false); //是否正在设置
+
   // 将 waitingForMessage 从 useState 转换为 useRef
   const waitingForMessage = useRef(false);
-  const [portrait, setPortrait] = useState({
-    姓名: "秋映染",
-    年龄: 20,
-    性别: "男",
-    职业: "游戏设计师",
-    爱好: "游戏，电影，插花，音乐",
-    短期计划: "做出第一款游戏",
-    聊天偏好: "喜欢真实且有温度的聊天",
-  }); //人物画像
 
   const socket = useRef(null); // 使用 useRef 保持对 WebSocket 的引用
 
   let finalHistory = [];
-  useEffect(() => {
-    setUser_id(accountEmail);
-  }, [accountEmail]);
+
   // WebSocket 连接建立
   useEffect(() => {
     socket.current = new WebSocket("ws://localhost:3002/");
@@ -70,16 +63,6 @@ export default function Chatbox() {
       const data = JSON.parse(event.data);
       if (data.allChunks) {
         //console.log(data.allChunks);
-        /* setSliceHistory((prevHistory) => {
-          // 创建一个新的历史记录副本
-          const newHistory = [...prevHistory];
-          if (newHistory.length > 0) {
-            newHistory[newHistory.length - 1].content = data.allChunks;
-            return newHistory;
-          }
-
-          return prevHistory;
-        }); */
       }
     };
 
@@ -160,13 +143,13 @@ export default function Chatbox() {
       if (socket.current) {
         socket.current.send(
           JSON.stringify({
-            user_id: user_id,
+            apiKey: accountAPIkey,
+            user_id: accountEmail,
             question: input,
             topK: 3,
             portrait: portrait,
             lastElements: lastElements,
             userMessage: userMessage,
-            temperature: 1, // 这些值可能会根据你的需求变化
           }),
         );
       }
@@ -252,7 +235,11 @@ export default function Chatbox() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ finalHistory, createdTime }),
+      body: JSON.stringify({
+        apiKey: accountAPIkey,
+        finalHistory,
+        createdTime,
+      }),
     })
       .then((response) => response.json())
       .then((data) => {
@@ -433,35 +420,20 @@ export default function Chatbox() {
             ) : (
               <div className="mx-auto mt-8 flex h-[850px] w-[800px] flex-col items-center rounded-lg border-4 border-slate-300 bg-slate-100 shadow-2xl">
                 <div className=" m-6 flex flex-row items-center">
-                  <div className="mr-6 text-2xl">OPEN_AI_KEY :</div>
-                  <input
-                    type="text"
-                    className="w-96 rounded-lg p-1 text-2xl"
-                    value={apiKey}
-                    placeholder="输入你的key"
-                    onChange={(e) => setApiKey(e.target.value)}
-                  />
+                  <div className="mr-6 text-4xl font-bold">使 用 手 册</div>
                 </div>
-                <div className="mt-6 flex flex-row justify-center">
-                  <div className="mr-16 flex flex-col items-center">
-                    <div className="text-2xl">发散度</div>
-                    <input
-                      type="text"
-                      className="w-32 rounded-lg p-1 text-2xl"
-                      placeholder="默认为1"
-                      value={temperature}
-                      onChange={(e) => setTemperature(e.target.value)}
-                    />
+                <div className="mx-10">
+                  <div className="mt-10 text-3xl">
+                    1.本应用分为两个部分，分别是聊天与数据库管理。
                   </div>
-                  <div className=" flex flex-col items-center">
-                    <div className="text-2xl">结合上下文</div>
-                    <input
-                      type="text"
-                      className="w-32 rounded-lg p-1 text-2xl"
-                      placeholder="默认为最大"
-                      value={length}
-                      onChange={(e) => setLength(e.target.value)}
-                    />
+                  <div className="mt-10 text-3xl">
+                    2.聊天每次发送消息后会从数据库中找到相关的数据进行整合和回复。
+                  </div>
+                  <div className="mt-10 text-3xl">
+                    3.数据库管理页面可对之前的记忆数据进行更新和删除。
+                  </div>
+                  <div className="mt-10 text-3xl">
+                    4.设置页面可进行更换API Key、设置上下文长度和设置个人画像。
                   </div>
                 </div>
               </div>
@@ -472,7 +444,7 @@ export default function Chatbox() {
             <textarea
               value={input}
               onChange={handleInputChange}
-              className="m-2 max-h-[170px] min-h-[90px] flex-1 items-center rounded-lg p-2"
+              className="m-2 max-h-[170px] min-h-[90px] flex-1 resize-none items-center rounded-lg p-2"
               placeholder="请输入内容"
               autoFocus={true}
               disabled={isSending}

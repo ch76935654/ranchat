@@ -5,7 +5,6 @@ export default function Footer() {
         <p className="text-center text-sm text-gray-500 sm:text-left">
           © 毕业设计 —
           <a
-            href="https://twitter.com/knyttneve"
             rel="noopener noreferrer"
             className="ml-1 text-gray-600"
             target="_blank"

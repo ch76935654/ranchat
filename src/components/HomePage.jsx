@@ -1,6 +1,18 @@
 import bg from "../assets/bg.png";
+import { useNavigate } from "react-router-dom";
+import { useAccount } from "./../context/AccountContext";
 
 export default function HomePage() {
+  const navigate = useNavigate();
+  const { accountEmail } = useAccount();
+
+  function handleStart() {
+    if (accountEmail) {
+      navigate("/chat");
+    } else {
+      navigate("/log");
+    }
+  }
   return (
     <div>
       <div className="mt-6">
@@ -21,7 +33,10 @@ export default function HomePage() {
                 结合了“Individual”（个体）和“Mosaic”（马赛克），暗示每个人的记忆和经历都是独一无二的碎片，汇集在一起形成了一个完整的个性画像。应用程序旨在捕捉和重构每个用户的独特记忆模式的功能，正如马赛克艺术品那样，由许多不同的小块组合而成。
               </p>
 
-              <button className="rounded border-0 bg-indigo-500 px-6 py-2 text-lg text-white hover:bg-indigo-600 focus:outline-none">
+              <button
+                className="rounded border-0 bg-indigo-500 px-6 py-2 text-lg text-white hover:bg-indigo-600 focus:outline-none"
+                onClick={handleStart}
+              >
                 开始使用
               </button>
               <p className="mt-3 text-xs">
